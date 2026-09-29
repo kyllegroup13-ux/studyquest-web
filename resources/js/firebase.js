@@ -3,12 +3,12 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC7R_9PbQZQ8WTN4Jm0EgnwfHLAA7F6X1Y",
-  authDomain: "studyquest-1e76e.firebaseapp.com",
-  projectId: "studyquest-1e76e",
-  storageBucket: "studyquest-1e76e.firebasestorage.app",
-  messagingSenderId: "35296442691",
-  appId: "1:35296442691:web:1dbb87825ce0009d4857f6"
+  apiKey: "AIzaSyD7TGb4R-bMM7q4dBMIVE2INZZYZMzvikI",
+  authDomain: "studyquest-ac732.firebaseapp.com",
+  projectId: "studyquest-ac732",
+  storageBucket: "studyquest-ac732.firebasestorage.app",
+  messagingSenderId: "592168830439",
+  appId: "1:592168830439:web:2c721bbd32f264c5996942"
 };
 
 const app = initializeApp(firebaseConfig);

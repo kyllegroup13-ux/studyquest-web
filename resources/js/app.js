@@ -83,18 +83,24 @@ if (registerForm) {
         event.preventDefault();
 
         const name =
-            registerForm.querySelector('[name="name"]')?.value.trim();
+            registerForm
+                .querySelector('[name="name"]')
+                ?.value.trim();
 
         const email =
-            registerForm.querySelector('[name="register_email"]')?.value.trim();
+            registerForm
+                .querySelector('[name="register_email"]')
+                ?.value.trim();
 
         const password =
-            registerForm.querySelector('[name="register_password"]')?.value;
+            registerForm
+                .querySelector('[name="register_password"]')
+                ?.value;
 
         const confirmPassword =
-            registerForm.querySelector(
-                '[name="password_confirmation"]'
-            )?.value;
+            registerForm
+                .querySelector('[name="password_confirmation"]')
+                ?.value;
 
         if (!name || !email || !password || !confirmPassword) {
             alert('Please fill in all fields.');
@@ -120,13 +126,17 @@ if (registerForm) {
         }
 
         const submitButton =
-            registerForm.querySelector('button[type="submit"]');
+            registerForm.querySelector(
+                'button[type="submit"]'
+            );
 
-        const originalText = submitButton?.textContent;
+        const originalText =
+            submitButton?.textContent;
 
         if (submitButton) {
             submitButton.disabled = true;
-            submitButton.textContent = 'Creating Account...';
+            submitButton.textContent =
+                'Creating Account...';
         }
 
         try {
@@ -137,45 +147,73 @@ if (registerForm) {
                     password
                 );
 
-            const user = userCredential.user;
+            const user =
+                userCredential.user;
 
             await updateProfile(user, {
                 displayName: name
             });
 
-            await setDoc(doc(db, 'users', user.uid), {
-                name,
-                email,
-                role: 'teacher',
-                createdAt: serverTimestamp()
-            });
+            await setDoc(
+                doc(db, 'users', user.uid),
+                {
+                    uid: user.uid,
+                    name: name,
+                    email: email,
+                    role: 'teacher',
+                    createdAt: serverTimestamp()
+                }
+            );
 
             await sendEmailVerification(user);
 
             await signOut(auth);
 
             registerForm.reset();
+
             showForm('login-form');
 
             alert(
                 'Account created! We sent a verification link to your email. Please verify your email before logging in.'
             );
+
         } catch (error) {
             console.error(error);
 
-            if (error.code === 'auth/email-already-in-use') {
-                alert('This email already has an account.');
-            } else if (error.code === 'auth/invalid-email') {
-                alert('Please enter a valid email address.');
-            } else if (error.code === 'auth/weak-password') {
-                alert('Your password is too weak.');
+            if (
+                error.code ===
+                'auth/email-already-in-use'
+            ) {
+                alert(
+                    'This email already has an account.'
+                );
+
+            } else if (
+                error.code ===
+                'auth/invalid-email'
+            ) {
+                alert(
+                    'Please enter a valid email address.'
+                );
+
+            } else if (
+                error.code ===
+                'auth/weak-password'
+            ) {
+                alert(
+                    'Your password is too weak.'
+                );
+
             } else {
-                alert('Could not create the account. Please try again.');
+                alert(
+                    'Could not create the account. Please try again.'
+                );
             }
 
             if (submitButton) {
                 submitButton.disabled = false;
-                submitButton.textContent = originalText;
+                submitButton.textContent =
+                    originalText;
             }
         }
     });
@@ -186,79 +224,105 @@ if (registerForm) {
    LOG IN
 ========================================================= */
 
-const loginForm = document.querySelector('#login-form');
+const loginForm =
+    document.querySelector('#login-form');
 
 if (loginForm) {
-    loginForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
+    loginForm.addEventListener(
+        'submit',
+        async (event) => {
+            event.preventDefault();
 
-        const email =
-            loginForm.querySelector('[name="email"]')?.value.trim();
+            const email =
+                loginForm
+                    .querySelector('[name="email"]')
+                    ?.value.trim();
 
-        const password =
-            loginForm.querySelector('[name="password"]')?.value;
+            const password =
+                loginForm
+                    .querySelector('[name="password"]')
+                    ?.value;
 
-        const remember =
-            loginForm.querySelector('[name="remember"]');
-
-        if (!email || !password) {
-            alert('Please enter your email and password.');
-            return;
-        }
-
-        const submitButton =
-            loginForm.querySelector('button[type="submit"]');
-
-        const originalText = submitButton?.textContent;
-
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.textContent = 'Logging In...';
-        }
-
-        try {
-            await setPersistence(
-                auth,
-                remember?.checked
-                    ? browserLocalPersistence
-                    : browserSessionPersistence
-            );
-
-            const userCredential =
-                await signInWithEmailAndPassword(
-                    auth,
-                    email,
-                    password
+            const remember =
+                loginForm.querySelector(
+                    '[name="remember"]'
                 );
 
-            const user = userCredential.user;
+            if (!email || !password) {
+                alert(
+                    'Please enter your email and password.'
+                );
+                return;
+            }
 
-            if (!user.emailVerified) {
-                await signOut(auth);
+            const submitButton =
+                loginForm.querySelector(
+                    'button[type="submit"]'
+                );
+
+            const originalText =
+                submitButton?.textContent;
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent =
+                    'Logging In...';
+            }
+
+            try {
+                await setPersistence(
+                    auth,
+                    remember?.checked
+                        ? browserLocalPersistence
+                        : browserSessionPersistence
+                );
+
+                const userCredential =
+                    await signInWithEmailAndPassword(
+                        auth,
+                        email,
+                        password
+                    );
+
+                const user =
+                    userCredential.user;
+
+                if (!user.emailVerified) {
+                    await signOut(auth);
+
+                    alert(
+                        'Please verify your email first. Check your inbox or spam folder for the verification link.'
+                    );
+
+                    if (submitButton) {
+                        submitButton.disabled =
+                            false;
+
+                        submitButton.textContent =
+                            originalText;
+                    }
+
+                    return;
+                }
+
+                window.location.href =
+                    '/dashboard';
+
+            } catch (error) {
+                console.error(error);
 
                 alert(
-                    'Please verify your email first. Check your inbox or spam folder for the verification link.'
+                    'Incorrect email or password.'
                 );
 
                 if (submitButton) {
                     submitButton.disabled = false;
-                    submitButton.textContent = originalText;
+                    submitButton.textContent =
+                        originalText;
                 }
-
-                return;
-            }
-
-            window.location.href = '/dashboard';
-        } catch (error) {
-            console.error(error);
-            alert('Incorrect email or password.');
-
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.textContent = originalText;
             }
         }
-    });
+    );
 }
 
 
@@ -266,82 +330,144 @@ if (loginForm) {
    DASHBOARD
 ========================================================= */
 
-const dashboardPage = document.querySelector('.dashboard-page');
+const dashboardPage =
+    document.querySelector('.dashboard-page');
 
 if (dashboardPage) {
+
     const profileButton =
-        document.querySelector('#profile-button');
+        document.querySelector(
+            '#profile-button'
+        );
 
     const profileMenu =
-        document.querySelector('#profile-menu');
+        document.querySelector(
+            '#profile-menu'
+        );
 
     const profileName =
-        document.querySelector('#profile-name');
+        document.querySelector(
+            '#profile-name'
+        );
 
     const profileEmail =
-        document.querySelector('#profile-email');
+        document.querySelector(
+            '#profile-email'
+        );
 
     const profileInitial =
-        document.querySelector('#profile-initial');
+        document.querySelector(
+            '#profile-initial'
+        );
 
     const logoutButton =
-        document.querySelector('#logout-button');
+        document.querySelector(
+            '#logout-button'
+        );
 
     const classModal =
-        document.querySelector('#class-modal');
+        document.querySelector(
+            '#class-modal'
+        );
 
     const openClassModalButton =
-        document.querySelector('#open-class-modal');
+        document.querySelector(
+            '#open-class-modal'
+        );
 
     const emptyAddClassButton =
-        document.querySelector('#empty-add-class');
+        document.querySelector(
+            '#empty-add-class'
+        );
 
     const closeClassModalButton =
-        document.querySelector('#close-class-modal');
+        document.querySelector(
+            '#close-class-modal'
+        );
 
     const cancelClassModalButton =
-        document.querySelector('#cancel-class-modal');
+        document.querySelector(
+            '#cancel-class-modal'
+        );
 
     const addClassForm =
-        document.querySelector('#add-class-form');
+        document.querySelector(
+            '#add-class-form'
+        );
 
     const generatedCodeInput =
-        document.querySelector('#generated-class-code');
+        document.querySelector(
+            '#generated-class-code'
+        );
 
     const regenerateCodeButton =
-        document.querySelector('#regenerate-code');
+        document.querySelector(
+            '#regenerate-code'
+        );
 
     const classesGrid =
-        document.querySelector('#classes-grid');
+        document.querySelector(
+            '#classes-grid'
+        );
 
     const classesLoading =
-        document.querySelector('#classes-loading');
+        document.querySelector(
+            '#classes-loading'
+        );
 
     const emptyClasses =
-        document.querySelector('#empty-classes');
+        document.querySelector(
+            '#empty-classes'
+        );
 
     const classNameInput =
-        document.querySelector('#class-name');
+        document.querySelector(
+            '#class-name'
+        );
 
     const descriptionInput =
-        document.querySelector('#class-description');
+        document.querySelector(
+            '#class-description'
+        );
 
     const classNameCount =
-        document.querySelector('#class-name-count');
+        document.querySelector(
+            '#class-name-count'
+        );
 
     const descriptionCount =
-        document.querySelector('#description-count');
+        document.querySelector(
+            '#description-count'
+        );
+
+
+    /* =====================================================
+       CURRENT TEACHER
+    ===================================================== */
 
     let currentTeacher = null;
 
+    // Stores the teacher name loaded from:
+    // users/{teacherUid}
+    let currentTeacherName = 'Teacher';
+
+
+    /* =====================================================
+       GENERATE CLASS CODE
+    ===================================================== */
 
     function generateClassCode() {
-        const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        const characters =
+            'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
         let code = '';
 
         for (let i = 0; i < 6; i += 1) {
             code += characters.charAt(
-                Math.floor(Math.random() * characters.length)
+                Math.floor(
+                    Math.random() *
+                    characters.length
+                )
             );
         }
 
@@ -349,22 +475,45 @@ if (dashboardPage) {
     }
 
 
+    /* =====================================================
+       OPEN CLASS MODAL
+    ===================================================== */
+
     function openClassModal() {
-        generatedCodeInput.value = generateClassCode();
+        generatedCodeInput.value =
+            generateClassCode();
+
         classModal.hidden = false;
-        document.body.style.overflow = 'hidden';
+
+        document.body.style.overflow =
+            'hidden';
+
         classNameInput.focus();
     }
 
 
+    /* =====================================================
+       CLOSE CLASS MODAL
+    ===================================================== */
+
     function closeClassModal() {
         classModal.hidden = true;
+
         document.body.style.overflow = '';
+
         addClassForm.reset();
-        classNameCount.textContent = '0 / 100';
-        descriptionCount.textContent = '0 / 200';
+
+        classNameCount.textContent =
+            '0 / 100';
+
+        descriptionCount.textContent =
+            '0 / 200';
     }
 
+
+    /* =====================================================
+       ESCAPE HTML
+    ===================================================== */
 
     function escapeHtml(value = '') {
         return value
@@ -376,21 +525,54 @@ if (dashboardPage) {
     }
 
 
-    function renderClassCard(classData, documentId) {
-        const card = document.createElement('article');
-        card.className = 'class-card';
-        card.dataset.classId = documentId;
+    /* =====================================================
+       RENDER CLASS CARD
+    ===================================================== */
 
-        const name = escapeHtml(classData.className || 'Untitled Class');
-        const subjectCode = escapeHtml(classData.subjectCode || '');
-        const yearLevel = escapeHtml(classData.yearLevel || '');
-        const description = escapeHtml(
-            classData.description || 'No class description.'
-        );
-        const classCode = escapeHtml(classData.classCode || '------');
+    function renderClassCard(
+        classData,
+        documentId
+    ) {
+        const card =
+            document.createElement('article');
+
+        card.className =
+            'class-card';
+
+        card.dataset.classId =
+            documentId;
+
+        const name =
+            escapeHtml(
+                classData.className ||
+                'Untitled Class'
+            );
+
+        const subjectCode =
+            escapeHtml(
+                classData.subjectCode || ''
+            );
+
+        const yearLevel =
+            escapeHtml(
+                classData.yearLevel || ''
+            );
+
+        const description =
+            escapeHtml(
+                classData.description ||
+                'No class description.'
+            );
+
+        const classCode =
+            escapeHtml(
+                classData.classCode ||
+                '------'
+            );
 
         card.innerHTML = `
             <div class="class-card-top">
+
                 <div class="class-card-icon"></div>
 
                 <button
@@ -402,17 +584,38 @@ if (dashboardPage) {
                 </button>
 
                 <h2>${name}</h2>
-                <p>${subjectCode} · ${yearLevel}</p>
-                <p>${description}</p>
+
+                <p>
+                    ${subjectCode} · ${yearLevel}
+                </p>
+
+                <p>
+                    ${description}
+                </p>
+
             </div>
 
             <div class="class-card-body">
-                <div class="class-card-info">
-                    <div>
-                        <span class="class-code-label">Class Code</span>
 
-                        <div class="class-code-row">
-                            <strong class="class-code">${classCode}</strong>
+                <div class="class-card-info">
+
+                    <div>
+
+                        <span
+                            class="class-code-label"
+                        >
+                            Class Code
+                        </span>
+
+                        <div
+                            class="class-code-row"
+                        >
+
+                            <strong
+                                class="class-code"
+                            >
+                                ${classCode}
+                            </strong>
 
                             <button
                                 type="button"
@@ -422,176 +625,372 @@ if (dashboardPage) {
                             >
                                 ⧉
                             </button>
+
                         </div>
+
                     </div>
 
                     <div class="class-stat">
-                        <span class="stat-label">Students</span>
-                        <strong>${classData.studentCount || 0}</strong>
+                        <span
+                            class="stat-label"
+                        >
+                            Students
+                        </span>
+
+                        <strong>
+                            ${classData.studentCount || 0}
+                        </strong>
                     </div>
 
                     <div class="class-stat">
-                        <span class="stat-label">Materials</span>
-                        <strong>${classData.materialCount || 0}</strong>
+                        <span
+                            class="stat-label"
+                        >
+                            Materials
+                        </span>
+
+                        <strong>
+                            ${classData.materialCount || 0}
+                        </strong>
                     </div>
+
                 </div>
 
-                <button type="button" class="view-class-button">
+                <button
+                    type="button"
+                    class="view-class-button"
+                >
                     View Class →
                 </button>
+
             </div>
         `;
 
-        card.querySelector('.copy-code-button')
-            .addEventListener('click', async (event) => {
-                const code = event.currentTarget.dataset.code;
 
-                try {
-                    await navigator.clipboard.writeText(code);
-                    event.currentTarget.textContent = '✓';
+        /* =============================================
+           COPY CLASS CODE
+        ============================================= */
 
-                    window.setTimeout(() => {
-                        event.currentTarget.textContent = '⧉';
-                    }, 1200);
-                } catch {
-                    alert(`Class code: ${code}`);
+        card
+            .querySelector(
+                '.copy-code-button'
+            )
+            .addEventListener(
+                'click',
+                async (event) => {
+
+                    const code =
+                        event.currentTarget
+                            .dataset.code;
+
+                    try {
+                        await navigator
+                            .clipboard
+                            .writeText(code);
+
+                        event.currentTarget
+                            .textContent = '✓';
+
+                        window.setTimeout(
+                            () => {
+                                event.currentTarget
+                                    .textContent = '⧉';
+                            },
+                            1200
+                        );
+
+                    } catch {
+                        alert(
+                            `Class code: ${code}`
+                        );
+                    }
                 }
-            });
+            );
 
-        card.querySelector('.view-class-button')
+
+        /* =============================================
+           VIEW CLASS
+        ============================================= */
+
+        card
+            .querySelector('.view-class-button')
             .addEventListener('click', () => {
-                alert('The class page will be connected next.');
+                window.location.href =
+                    `/class/${documentId}`;
             });
 
         return card;
     }
 
 
+    /* =====================================================
+       LOAD TEACHER CLASSES
+    ===================================================== */
+
     async function loadClasses() {
+
         classesLoading.hidden = false;
         emptyClasses.hidden = true;
 
         try {
-            const classesQuery = query(
-                collection(db, 'classes'),
-                where('teacherId', '==', currentTeacher.uid)
+
+            const classesQuery =
+                query(
+                    collection(
+                        db,
+                        'classes'
+                    ),
+                    where(
+                        'teacherId',
+                        '==',
+                        currentTeacher.uid
+                    )
+                );
+
+            const snapshot =
+                await getDocs(
+                    classesQuery
+                );
+
+            const classDocuments = await Promise.all(
+                snapshot.docs.map(async (classDocument) => {
+
+                    // Get the actual students inside this class
+                    const studentsSnapshot = await getDocs(
+                        collection(
+                            db,
+                            'classes',
+                            classDocument.id,
+                            'students'
+                        )
+                    );
+
+                    return {
+                        id: classDocument.id,
+                        ...classDocument.data(),
+
+                        // Actual number of joined students
+                        studentCount: studentsSnapshot.size
+                    };
+                })
             );
 
-            const snapshot = await getDocs(classesQuery);
+            classDocuments.sort(
+                (a, b) => {
 
-            const classDocuments = [];
+                    const first =
+                        a.createdAt
+                            ?.toMillis?.() || 0;
 
-            snapshot.forEach((classDocument) => {
-                classDocuments.push({
-                    id: classDocument.id,
-                    ...classDocument.data()
-                });
-            });
+                    const second =
+                        b.createdAt
+                            ?.toMillis?.() || 0;
 
-            classDocuments.sort((a, b) => {
-                const first = a.createdAt?.toMillis?.() || 0;
-                const second = b.createdAt?.toMillis?.() || 0;
-
-                return second - first;
-            });
+                    return second - first;
+                }
+            );
 
             classesGrid.innerHTML = '';
 
-            if (classDocuments.length === 0) {
+            if (
+                classDocuments.length === 0
+            ) {
                 emptyClasses.hidden = false;
                 return;
             }
 
-            classDocuments.forEach((classData) => {
-                classesGrid.appendChild(
-                    renderClassCard(classData, classData.id)
-                );
-            });
+            classDocuments.forEach(
+                (classData) => {
+
+                    classesGrid.appendChild(
+                        renderClassCard(
+                            classData,
+                            classData.id
+                        )
+                    );
+                }
+            );
+
         } catch (error) {
+
             console.error(error);
+
             classesGrid.innerHTML = `
                 <p class="classes-loading">
-                    Could not load classes. Check your Firestore rules.
+                    Could not load classes.
+                    Check your Firestore rules.
                 </p>
             `;
         }
     }
 
 
-    onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-            window.location.replace('/');
-            return;
-        }
+    /* =====================================================
+       AUTHENTICATION STATE
+    ===================================================== */
 
-        if (!user.emailVerified) {
-            await signOut(auth);
+    onAuthStateChanged(
+        auth,
+        async (user) => {
 
-            alert(
-                'Please verify your email before accessing the dashboard.'
-            );
-
-            window.location.replace('/');
-            return;
-        }
-
-        currentTeacher = user;
-
-        let teacherName =
-            user.displayName || 'Teacher';
-
-        try {
-            const userDocument =
-                await getDoc(doc(db, 'users', user.uid));
-
-            if (userDocument.exists()) {
-                teacherName =
-                    userDocument.data().name || teacherName;
+            if (!user) {
+                window.location.replace('/');
+                return;
             }
-        } catch (error) {
-            console.error(error);
+
+            if (!user.emailVerified) {
+
+                await signOut(auth);
+
+                alert(
+                    'Please verify your email before accessing the dashboard.'
+                );
+
+                window.location.replace('/');
+
+                return;
+            }
+
+
+            /* =============================================
+               SAVE CURRENT TEACHER
+            ============================================= */
+
+            currentTeacher = user;
+
+
+            /* =============================================
+               GET TEACHER NAME
+            ============================================= */
+
+            let teacherName =
+                user.displayName ||
+                'Teacher';
+
+            try {
+
+                const userDocument =
+                    await getDoc(
+                        doc(
+                            db,
+                            'users',
+                            user.uid
+                        )
+                    );
+
+                if (
+                    userDocument.exists()
+                ) {
+                    teacherName =
+                        userDocument
+                            .data()
+                            .name ||
+                        teacherName;
+                }
+
+            } catch (error) {
+                console.error(error);
+            }
+
+
+            /* =============================================
+               IMPORTANT:
+               SAVE NAME FOR CLASS CREATION
+            ============================================= */
+
+            currentTeacherName =
+                teacherName;
+
+
+            /* =============================================
+               UPDATE PROFILE UI
+            ============================================= */
+
+            profileName.textContent =
+                teacherName;
+
+            profileEmail.textContent =
+                user.email || '';
+
+            profileInitial.textContent =
+                teacherName
+                    .charAt(0)
+                    .toUpperCase();
+
+
+            /* =============================================
+               LOAD CLASSES
+            ============================================= */
+
+            await loadClasses();
         }
-
-        profileName.textContent = teacherName;
-        profileEmail.textContent = user.email || '';
-        profileInitial.textContent =
-            teacherName.charAt(0).toUpperCase();
-
-        await loadClasses();
-    });
+    );
 
 
-    profileButton.addEventListener('click', () => {
-        const isHidden = profileMenu.hidden;
+    /* =====================================================
+       PROFILE MENU
+    ===================================================== */
 
-        profileMenu.hidden = !isHidden;
-        profileButton.setAttribute(
-            'aria-expanded',
-            String(isHidden)
-        );
-    });
+    profileButton.addEventListener(
+        'click',
+        () => {
 
+            const isHidden =
+                profileMenu.hidden;
 
-    document.addEventListener('click', (event) => {
-        if (
-            !profileMenu.hidden &&
-            !profileMenu.contains(event.target) &&
-            !profileButton.contains(event.target)
-        ) {
-            profileMenu.hidden = true;
+            profileMenu.hidden =
+                !isHidden;
+
             profileButton.setAttribute(
                 'aria-expanded',
-                'false'
+                String(isHidden)
             );
         }
-    });
+    );
 
 
-    logoutButton.addEventListener('click', async () => {
-        await signOut(auth);
-        window.location.replace('/');
-    });
+    document.addEventListener(
+        'click',
+        (event) => {
 
+            if (
+                !profileMenu.hidden &&
+                !profileMenu.contains(
+                    event.target
+                ) &&
+                !profileButton.contains(
+                    event.target
+                )
+            ) {
+                profileMenu.hidden = true;
+
+                profileButton.setAttribute(
+                    'aria-expanded',
+                    'false'
+                );
+            }
+        }
+    );
+
+
+    /* =====================================================
+       LOG OUT
+    ===================================================== */
+
+    logoutButton.addEventListener(
+        'click',
+        async () => {
+
+            await signOut(auth);
+
+            window.location.replace('/');
+        }
+    );
+
+
+    /* =====================================================
+       CLASS MODAL EVENTS
+    ===================================================== */
 
     openClassModalButton.addEventListener(
         'click',
@@ -613,103 +1012,199 @@ if (dashboardPage) {
         closeClassModal
     );
 
-    regenerateCodeButton.addEventListener('click', () => {
-        generatedCodeInput.value = generateClassCode();
-    });
-
-
-    classModal.addEventListener('click', (event) => {
-        if (event.target === classModal) {
-            closeClassModal();
+    regenerateCodeButton.addEventListener(
+        'click',
+        () => {
+            generatedCodeInput.value =
+                generateClassCode();
         }
-    });
+    );
 
 
-    document.addEventListener('keydown', (event) => {
-        if (
-            event.key === 'Escape' &&
-            !classModal.hidden
-        ) {
-            closeClassModal();
+    classModal.addEventListener(
+        'click',
+        (event) => {
+
+            if (
+                event.target === classModal
+            ) {
+                closeClassModal();
+            }
         }
-    });
+    );
 
 
-    classNameInput.addEventListener('input', () => {
-        classNameCount.textContent =
-            `${classNameInput.value.length} / 100`;
-    });
+    document.addEventListener(
+        'keydown',
+        (event) => {
 
-
-    descriptionInput.addEventListener('input', () => {
-        descriptionCount.textContent =
-            `${descriptionInput.value.length} / 200`;
-    });
-
-
-    addClassForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-
-        if (!currentTeacher) {
-            return;
+            if (
+                event.key === 'Escape' &&
+                !classModal.hidden
+            ) {
+                closeClassModal();
+            }
         }
+    );
 
-        const formData = new FormData(addClassForm);
 
-        const className =
-            formData.get('class_name')?.trim();
+    /* =====================================================
+       CHARACTER COUNTERS
+    ===================================================== */
 
-        const subjectCode =
-            formData.get('subject_code')?.trim();
+    classNameInput.addEventListener(
+        'input',
+        () => {
 
-        const yearLevel =
-            formData.get('year_level');
-
-        const description =
-            formData.get('description')?.trim();
-
-        const classCode =
-            generatedCodeInput.value;
-
-        if (!className || !subjectCode || !yearLevel) {
-            alert('Please complete all required fields.');
-            return;
+            classNameCount.textContent =
+                `${classNameInput.value.length} / 100`;
         }
+    );
 
-        const createButton =
-            addClassForm.querySelector(
-                '.create-class-button'
-            );
 
-        const originalText =
-            createButton.textContent;
+    descriptionInput.addEventListener(
+        'input',
+        () => {
 
-        createButton.disabled = true;
-        createButton.textContent = 'Creating...';
-
-        try {
-            await addDoc(collection(db, 'classes'), {
-                teacherId: currentTeacher.uid,
-                className,
-                subjectCode,
-                yearLevel,
-                description,
-                classCode,
-                studentCount: 0,
-                materialCount: 0,
-                createdAt: serverTimestamp()
-            });
-
-            closeClassModal();
-            await loadClasses();
-        } catch (error) {
-            console.error(error);
-            alert(
-                'Could not create the class. Check your Firestore rules.'
-            );
-        } finally {
-            createButton.disabled = false;
-            createButton.textContent = originalText;
+            descriptionCount.textContent =
+                `${descriptionInput.value.length} / 200`;
         }
-    });
+    );
+
+
+    /* =====================================================
+       CREATE CLASS
+    ===================================================== */
+
+    addClassForm.addEventListener(
+        'submit',
+        async (event) => {
+
+            event.preventDefault();
+
+            if (!currentTeacher) {
+                return;
+            }
+
+            const formData =
+                new FormData(
+                    addClassForm
+                );
+
+            const className =
+                formData
+                    .get('class_name')
+                    ?.trim();
+
+            const subjectCode =
+                formData
+                    .get('subject_code')
+                    ?.trim();
+
+            const yearLevel =
+                formData.get(
+                    'year_level'
+                );
+
+            const description =
+                formData
+                    .get('description')
+                    ?.trim();
+
+            const classCode =
+                generatedCodeInput.value;
+
+            if (
+                !className ||
+                !subjectCode ||
+                !yearLevel
+            ) {
+                alert(
+                    'Please complete all required fields.'
+                );
+
+                return;
+            }
+
+            const createButton =
+                addClassForm.querySelector(
+                    '.create-class-button'
+                );
+
+            const originalText =
+                createButton.textContent;
+
+            createButton.disabled = true;
+
+            createButton.textContent =
+                'Creating...';
+
+            try {
+
+                /* =========================================
+                   CREATE CLASS DOCUMENT
+                ========================================= */
+
+                await addDoc(
+                    collection(
+                        db,
+                        'classes'
+                    ),
+                    {
+                        teacherId:
+                            currentTeacher.uid,
+
+                        // Teacher name copied from users/{uid}
+                        teacherName:
+                            currentTeacherName,
+
+                        className:
+                            className,
+
+                        subjectCode:
+                            subjectCode,
+
+                        yearLevel:
+                            yearLevel,
+
+                        description:
+                            description,
+
+                        classCode:
+                            classCode,
+
+                        materialCount: 0,
+
+                        createdAt:
+                            serverTimestamp()
+                    }
+                );
+
+
+                /* =========================================
+                   REFRESH DASHBOARD
+                ========================================= */
+
+                closeClassModal();
+
+                await loadClasses();
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    'Could not create the class. Check your Firestore rules.'
+                );
+
+            } finally {
+
+                createButton.disabled =
+                    false;
+
+                createButton.textContent =
+                    originalText;
+            }
+        }
+    );
 }

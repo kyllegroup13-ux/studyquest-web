@@ -1,0 +1,108 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================
+    // USERS
+    // ========================================
+
+    match /users/{userId} {
+
+      // Users can read their own account.
+      allow read: if request.auth != null
+        && request.auth.uid == userId;
+
+      // Users can create their own account.
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId;
+
+      // Users can update their own profile,
+      // but cannot change their UID or role.
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'username',
+            'name',
+            'profileImageUrl'
+          ]);
+
+      allow delete: if false;
+    }
+
+    // ========================================
+    // GENERATED GAMES / REVIEWERS
+    // ========================================
+
+    match /users/{userId}/generatedGames/{gameId} {
+
+    // Only the owner can access their games.
+    allow read, create, delete: if request.auth != null
+      && request.auth.uid == userId;
+
+    // Prevent editing generated games.
+    allow update: if false;
+  }
+
+    // ========================================
+    // CLASSES
+    // ========================================
+
+    match /classes/{classId} {
+
+      // Any authenticated user can read a class.
+      // Students need this to search using classCode.
+      allow read: if request.auth != null;
+
+      // Only the teacher creating the class can create it.
+      allow create: if request.auth != null
+        && request.resource.data.teacherId == request.auth.uid;
+
+      // Only the class owner can modify the class.
+      allow update: if request.auth != null
+        && resource.data.teacherId == request.auth.uid
+        && request.resource.data.teacherId == request.auth.uid;
+
+      // Only the class owner can delete it.
+      allow delete: if request.auth != null
+        && resource.data.teacherId == request.auth.uid;
+
+
+      // ========================================
+      // STUDENTS INSIDE CLASS
+      // ========================================
+
+      match /students/{studentId} {
+
+        allow create: if request.auth != null
+          && request.auth.uid == studentId
+          && request.resource.data.uid == request.auth.uid;
+
+        allow read: if request.auth != null
+          && (
+            request.auth.uid == studentId ||
+            get(/databases/$(database)/documents/classes/$(classId))
+              .data.teacherId == request.auth.uid
+          );
+
+        // Student can update ONLY their own name
+        allow update: if request.auth != null
+          && request.auth.uid == studentId
+          && request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasOnly(['name']);
+
+        allow delete: if request.auth != null
+          && (
+            request.auth.uid == studentId ||
+            get(/databases/$(database)/documents/classes/$(classId))
+              .data.teacherId == request.auth.uid
+          );
+      }
+    }
+  }
+}
