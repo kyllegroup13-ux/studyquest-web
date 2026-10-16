@@ -103,6 +103,24 @@ service cloud.firestore {
               .data.teacherId == request.auth.uid
           );
       }
+
+      // ========================================
+      // POSTS
+      // ========================================
+
+      match /posts/{postId} {
+          allow read: if request.auth != null
+            && (
+              get(/databases/$(database)/documents/classes/$(classId))
+                .data.teacherId == request.auth.uid
+              || exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid))
+            );
+
+          allow create: if request.auth != null
+            && get(/databases/$(database)/documents/classes/$(classId))
+              .data.teacherId == request.auth.uid
+            && request.resource.data.authorId == request.auth.uid;
+      }
     }
   }
 }
