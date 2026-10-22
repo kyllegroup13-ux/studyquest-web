@@ -12,11 +12,11 @@
             <section class="intro-section">
                 <div class="brand">
                     <img src="{{ asset('images/logo.png') }}" alt="StudyQuest Logo" class="brand-logo">
-                    <span class="brand-name">StudyQuest</span>
+                    <span class="brand-name">Study<span>Quest</span></span>
                 </div>
 
                 <div class="intro-copy">
-                    <h1>Empower Your<br>Classrooms</h1>
+                    <h1>Empower Your<br><span>Classrooms</span></h1>
                     <p>
                         Share learning materials, manage<br class="desktop-break">
                         students digitally, and enhance their<br class="desktop-break">
@@ -24,7 +24,7 @@
                     </p>
                 </div>
 
-                <div class="features">
+                <div class="features" aria-label="StudyQuest features">
                     <div class="feature-item">
                         <img src="{{ asset('images/upload-icon.png') }}" alt="" class="feature-icon">
                         <div>
@@ -55,14 +55,16 @@
                 <div class="auth-card">
                     <div class="card-heading">
                         <h2>Welcome, Teacher!</h2>
-                        <p>Log in to your StudyQuest account and continue monitoring<br>your class.</p>
+                        <p>Log in to your StudyQuest account and continue monitoring your class.</p>
                     </div>
 
                     <div class="auth-tabs" role="tablist">
                         <button class="auth-tab active" id="login-tab" type="button" role="tab" aria-selected="true" data-form="login-form">
+                            <i class="fa-solid fa-lock" aria-hidden="true"></i>
                             Log In
                         </button>
                         <button class="auth-tab" id="register-tab" type="button" role="tab" aria-selected="false" data-form="register-form">
+                            <i class="fa-regular fa-user" aria-hidden="true"></i>
                             Create Account
                         </button>
                     </div>
@@ -78,14 +80,17 @@
                             <input type="email" name="email" placeholder="Email Address" autocomplete="email">
                         </div>
 
-                        <div class="input-box">
+                        <div class="input-box password-input-box">
                             <span class="field-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
                                     <rect x="5" y="10" width="14" height="10" rx="2"></rect>
                                     <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
                                 </svg>
                             </span>
-                            <input type="password" name="password" placeholder="Password" autocomplete="current-password">
+                            <input id="login-password" type="password" name="password" placeholder="Password" autocomplete="current-password">
+                            <button class="password-toggle" type="button" aria-label="Show password" aria-controls="login-password" aria-pressed="false">
+                                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                            </button>
                         </div>
 
                         <div class="form-options">
@@ -96,17 +101,21 @@
                             <a href="#">Forgot Password?</a>
                         </div>
 
-                        <button class="primary-button" type="submit">Log In</button>
+                        <button class="primary-button" type="submit">
+                            <span>Log In</span>
+                            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                        </button>
 
+                        <div class="auth-divider" aria-hidden="true"><span>or</span></div>
                         <p class="account-switch">
-                            Don't Have an account?
+                            Don't have an account?
                             <button type="button" data-switch="register">Create one</button>
                         </p>
                     </form>
 
                     <form class="auth-form" id="register-form" action="#" method="POST">
                         <label class="field-label" for="name">Name <span>*</span></label>
-                        <div class="input-box compact">
+                        <div class="input-box compact password-input-box">
                             <span class="field-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
                                     <circle cx="12" cy="8" r="3.5"></circle>
@@ -136,11 +145,14 @@
                                 </svg>
                             </span>
                             <input id="register-password" type="password" name="register_password" placeholder="Password" autocomplete="new-password">
+                            <button class="password-toggle" type="button" aria-label="Show password" aria-controls="register-password" aria-pressed="false">
+                                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                            </button>
                         </div>
                         <p class="password-help">Password must be at least 8 letters, numbers, and symbols.</p>
 
                         <label class="field-label" for="confirm-password">Confirm Password <span>*</span></label>
-                        <div class="input-box compact">
+                        <div class="input-box compact password-input-box">
                             <span class="field-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
                                     <rect x="5" y="10" width="14" height="10" rx="2"></rect>
@@ -148,6 +160,9 @@
                                 </svg>
                             </span>
                             <input id="confirm-password" type="password" name="password_confirmation" placeholder="Password" autocomplete="new-password">
+                            <button class="password-toggle" type="button" aria-label="Show password" aria-controls="confirm-password" aria-pressed="false">
+                                <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                            </button>
                         </div>
 
                         <button class="primary-button register-button" type="submit">Create Account</button>

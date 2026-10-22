@@ -74,6 +74,20 @@ document.querySelectorAll('[data-switch]').forEach((button) => {
     });
 });
 
+document.querySelectorAll('.password-toggle').forEach((button) => {
+    button.addEventListener('click', () => {
+        const passwordInput = document.getElementById(button.getAttribute('aria-controls'));
+        const icon = button.querySelector('i');
+        const isVisible = passwordInput.type === 'text';
+
+        passwordInput.type = isVisible ? 'password' : 'text';
+        button.setAttribute('aria-pressed', String(!isVisible));
+        button.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
+        icon.classList.toggle('fa-eye', isVisible);
+        icon.classList.toggle('fa-eye-slash', !isVisible);
+    });
+});
+
 
 /* =========================================================
    CREATE ACCOUNT
