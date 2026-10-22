@@ -11,7 +11,7 @@
         <div class="auth-container">
             <section class="intro-section">
                 <div class="brand">
-                    <img src="{{ Vite::asset('resources/images/logo.png') }}" alt="StudyQuest logo" class="brand-logo">
+                    <img src="{{ asset('images/logo.png') }}" alt="StudyQuest Logo" class="brand-logo">
                     <span class="brand-name">StudyQuest</span>
                 </div>
 
