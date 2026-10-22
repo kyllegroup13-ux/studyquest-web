@@ -20,7 +20,7 @@ RUN apt-get update \
 COPY --from=ghcr.io/mlocati/php-extension-installer:latest \
     /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 RUN install-php-extensions bcmath gd intl mbstring opcache pcntl \
-    pdo_mysql pdo_pgsql zip grpc protobuf
+    pdo_mysql pdo_pgsql zip
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
