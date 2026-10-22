@@ -1,26 +1,14 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ========================================
-    // USERS
-    // ========================================
-
     match /users/{userId} {
-
-      // Users can read their own account.
       allow read: if request.auth != null
         && request.auth.uid == userId;
 
-      // Users can create their own account.
       allow create: if request.auth != null
         && request.auth.uid == userId
         && request.resource.data.uid == userId;
 
-      // Users can update their own profile,
-      // but cannot change their UID or role.
       allow update: if request.auth != null
         && request.auth.uid == userId
         && request.resource.data.diff(resource.data)
@@ -28,99 +16,242 @@ service cloud.firestore {
           .hasOnly([
             'username',
             'name',
-            'profileImageUrl'
-          ]);
+            'profileImageUrl',
+            'questionsAnswered'
+          ])
+        && (
+          !request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasAny(['questionsAnswered'])
+          || (
+            request.resource.data.questionsAnswered is int
+            && request.resource.data.questionsAnswered
+              == resource.data.get('questionsAnswered', 0) + 1
+          )
+        );
 
       allow delete: if false;
     }
 
-    // ========================================
-    // GENERATED GAMES / REVIEWERS
-    // ========================================
-
     match /users/{userId}/generatedGames/{gameId} {
+      allow read, create, delete: if request.auth != null
+        && request.auth.uid == userId;
 
-    // Only the owner can access their games.
-    allow read, create, delete: if request.auth != null
-      && request.auth.uid == userId;
+      allow update: if false;
+    }
 
-    // Prevent editing generated games.
-    allow update: if false;
-  }
+    match /users/{userId}/activityHistory/{eventId} {
+      function isOwner() {
+        return request.auth != null
+          && request.auth.uid == userId;
+      }
 
-    // ========================================
-    // CLASSES
-    // ========================================
+      allow read: if isOwner();
+
+      allow create: if isOwner()
+        && request.resource.data.createdAt == request.time
+        && (
+          (
+            request.resource.data.eventType == 'game_generated'
+            && request.resource.data.keys().hasAll([
+              'eventType',
+              'gameType',
+              'createdAt'
+            ])
+            && request.resource.data.keys().hasOnly([
+              'eventType',
+              'gameType',
+              'createdAt'
+            ])
+            && request.resource.data.gameType is string
+          )
+          || (
+            request.resource.data.eventType == 'username_changed'
+            && request.resource.data.keys().hasAll([
+              'eventType',
+              'username',
+              'createdAt'
+            ])
+            && request.resource.data.keys().hasOnly([
+              'eventType',
+              'username',
+              'createdAt'
+            ])
+            && request.resource.data.username is string
+          )
+          || (
+            request.resource.data.eventType == 'profile_changed'
+            && request.resource.data.keys().hasAll([
+              'eventType',
+              'createdAt'
+            ])
+            && request.resource.data.keys().hasOnly([
+              'eventType',
+              'createdAt'
+            ])
+          )
+          || (
+            request.resource.data.eventType == 'reviewer_deleted'
+            && request.resource.data.keys().hasAll([
+              'eventType',
+              'reviewerName',
+              'createdAt'
+            ])
+            && request.resource.data.keys().hasOnly([
+              'eventType',
+              'reviewerName',
+              'createdAt'
+            ])
+            && request.resource.data.reviewerName is string
+          )
+          || (
+            request.resource.data.eventType == 'class_joined'
+            && request.resource.data.keys().hasAll([
+              'eventType',
+              'className',
+              'createdAt'
+            ])
+            && request.resource.data.keys().hasOnly([
+              'eventType',
+              'className',
+              'createdAt'
+            ])
+            && request.resource.data.className is string
+          )
+        );
+
+      allow update, delete: if false;
+    }
 
     match /classes/{classId} {
-
-      // Any authenticated user can read a class.
-      // Students need this to search using classCode.
       allow read: if request.auth != null;
 
-      // Only the teacher creating the class can create it.
       allow create: if request.auth != null
         && request.resource.data.teacherId == request.auth.uid;
 
-      // Only the class owner can modify the class.
       allow update: if request.auth != null
         && resource.data.teacherId == request.auth.uid
         && request.resource.data.teacherId == request.auth.uid;
 
-      // Only the class owner can delete it.
       allow delete: if request.auth != null
         && resource.data.teacherId == request.auth.uid;
 
-
-      // ========================================
-      // STUDENTS INSIDE CLASS
-      // ========================================
-
       match /students/{studentId} {
-
         allow create: if request.auth != null
           && request.auth.uid == studentId
           && request.resource.data.uid == request.auth.uid;
 
         allow read: if request.auth != null
           && (
-            request.auth.uid == studentId ||
-            get(/databases/$(database)/documents/classes/$(classId))
+            request.auth.uid == studentId
+            || get(/databases/$(database)/documents/classes/$(classId))
               .data.teacherId == request.auth.uid
+            || exists(
+              /databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)
+            )
           );
 
-        // Student can update ONLY their own name
         allow update: if request.auth != null
           && request.auth.uid == studentId
+          && request.resource.data.uid == request.auth.uid
           && request.resource.data.diff(resource.data)
             .affectedKeys()
-            .hasOnly(['name']);
+            .hasOnly([
+              'name',
+              'profileImageUrl'
+            ]);
 
         allow delete: if request.auth != null
           && (
-            request.auth.uid == studentId ||
-            get(/databases/$(database)/documents/classes/$(classId))
+            request.auth.uid == studentId
+            || get(/databases/$(database)/documents/classes/$(classId))
               .data.teacherId == request.auth.uid
           );
       }
 
-      // ========================================
-      // POSTS
-      // ========================================
-
       match /posts/{postId} {
-          allow read: if request.auth != null
-            && (
-              get(/databases/$(database)/documents/classes/$(classId))
-                .data.teacherId == request.auth.uid
-              || exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid))
-            );
+        function isClassTeacher() {
+          return request.auth != null
+            && get(
+              /databases/$(database)/documents/classes/$(classId)
+            ).data.teacherId == request.auth.uid;
+        }
 
-          allow create: if request.auth != null
-            && get(/databases/$(database)/documents/classes/$(classId))
-              .data.teacherId == request.auth.uid
-            && request.resource.data.authorId == request.auth.uid;
+        function isEnrolledStudent() {
+          return request.auth != null
+            && exists(
+              /databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)
+            );
+        }
+
+        function validPost() {
+          return request.resource.data.keys().hasAll([
+            'title',
+            'description',
+            'authorId',
+            'authorName',
+            'fileName',
+            'filePublicId',
+            'fileUrl',
+            'createdAt'
+          ])
+            && request.resource.data.keys().hasOnly([
+              'title',
+              'description',
+              'authorId',
+              'authorName',
+              'fileName',
+              'filePublicId',
+              'fileUrl',
+              'attachments',
+              'createdAt'
+            ])
+            && request.resource.data.title is string
+            && request.resource.data.title.size() > 0
+            && request.resource.data.title.size() <= 100
+            && request.resource.data.description is string
+            && request.resource.data.description.size() <= 200
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.authorName is string
+            && request.resource.data.authorName.size() <= 200
+            && request.resource.data.fileName is string
+            && request.resource.data.fileName.size() <= 255
+            && request.resource.data.filePublicId is string
+            && request.resource.data.filePublicId.size() <= 500
+            && request.resource.data.fileUrl is string
+            && request.resource.data.fileUrl.size() <= 2048
+            && (
+              !request.resource.data.keys().hasAny(['attachments'])
+              || request.resource.data.attachments is list
+            )
+            && request.resource.data.createdAt is timestamp;
+        }
+
+        allow read: if isClassTeacher() || isEnrolledStudent();
+
+        allow create: if isClassTeacher()
+          && validPost()
+          && request.resource.data.createdAt == request.time;
+
+        allow update: if isClassTeacher()
+          && request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+              'title',
+              'description',
+              'fileName',
+              'filePublicId',
+              'fileUrl',
+              'attachments'
+            ])
+          && validPost()
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.authorName == resource.data.authorName
+          && request.resource.data.createdAt == resource.data.createdAt;
+
+        allow delete: if isClassTeacher();
       }
+
     }
   }
 }

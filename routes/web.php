@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ClassAttachmentController;
+use App\Http\Controllers\ClassPostController;
+use App\Http\Controllers\ProfileImageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -13,10 +15,18 @@ Route::get('/dashboard', function () {
 
 Route::get('/class/{classId}', function ($classId) {
     return view('class', [
-        'classId' => $classId
+        'classId' => $classId,
     ]);
 });
 
 Route::post('/class/attachments', [ClassAttachmentController::class, 'store'])
     ->middleware('throttle:20,1')
     ->name('class.attachments.store');
+
+Route::post('/class/posts', [ClassPostController::class, 'publish'])
+    ->middleware('throttle:20,1')
+    ->name('class.posts.publish');
+
+Route::post('/profile/image', [ProfileImageController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('profile.image.store');

@@ -18,12 +18,15 @@ import {
 import {
     addDoc,
     collection,
+    deleteDoc,
     doc,
     getDoc,
     getDocs,
     query,
     serverTimestamp,
     setDoc,
+    updateDoc,
+    writeBatch,
     where
 } from 'firebase/firestore';
 
@@ -355,9 +358,129 @@ if (dashboardPage) {
             '#profile-email'
         );
 
+    const profileMenuInitial =
+        document.querySelector(
+            '#profile-menu-initial'
+        );
+
+    const profileButtonImage =
+        document.querySelector(
+            '#profile-button-image'
+        );
+
+    const profileMenuImage =
+        document.querySelector(
+            '#profile-menu-image'
+        );
+
     const profileInitial =
         document.querySelector(
             '#profile-initial'
+        );
+
+    const profileModal =
+        document.querySelector(
+            '#profile-modal'
+        );
+
+    const closeProfileModalButton =
+        document.querySelector(
+            '#close-profile-modal'
+        );
+
+    const closeProfileViewButton =
+        document.querySelector(
+            '#close-profile-view'
+        );
+
+    const displayProfileButton =
+        document.querySelector(
+            '#display-profile-button'
+        );
+
+    const editProfileButton =
+        document.querySelector(
+            '#edit-profile-button'
+        );
+
+    const startProfileEditButton =
+        document.querySelector(
+            '#start-profile-edit'
+        );
+
+    const cancelProfileEditButton =
+        document.querySelector(
+            '#cancel-profile-edit'
+        );
+
+    const profileDisplayView =
+        document.querySelector(
+            '#profile-display-view'
+        );
+
+    const profileEditForm =
+        document.querySelector(
+            '#edit-profile-form'
+        );
+
+    const profileModalTitle =
+        document.querySelector(
+            '#profile-modal-title'
+        );
+
+    const profileModalSubtitle =
+        document.querySelector(
+            '#profile-modal-subtitle'
+        );
+
+    const profileModalInitial =
+        document.querySelector(
+            '#profile-modal-initial'
+        );
+
+    const profileModalImage =
+        document.querySelector(
+            '#profile-modal-image'
+        );
+
+    const profileEditImageInput =
+        document.querySelector(
+            '#profile-image-input'
+        );
+
+    const profileEditImagePreview =
+        document.querySelector(
+            '#profile-edit-image-preview'
+        );
+
+    const profileEditInitial =
+        document.querySelector(
+            '#profile-edit-initial'
+        );
+
+    const profileDetailName =
+        document.querySelector(
+            '#profile-detail-name'
+        );
+
+    const profileDetailEmail =
+        document.querySelector(
+            '#profile-detail-email'
+        );
+
+    const profileEditName =
+        document.querySelector(
+            '#profile-edit-name'
+        );
+
+    const profileEditEmail =
+        document.querySelector(
+            '#profile-edit-email'
+        );
+
+    const saveProfileButton =
+        document.querySelector(
+            '#save-profile-button'
         );
 
     const logoutButton =
@@ -420,6 +543,24 @@ if (dashboardPage) {
             '#empty-classes'
         );
 
+    const classSearchInput =
+        document.querySelector('#class-search');
+
+    const yearLevelFilter =
+        document.querySelector('#year-level-filter');
+
+    const classResultsCount =
+        document.querySelector('#class-results-count');
+
+    const noClassResults =
+        document.querySelector('#no-class-results');
+
+    const gridViewButton =
+        document.querySelector('#grid-view-button');
+
+    const listViewButton =
+        document.querySelector('#list-view-button');
+
     const classNameInput =
         document.querySelector(
             '#class-name'
@@ -446,10 +587,151 @@ if (dashboardPage) {
     ===================================================== */
 
     let currentTeacher = null;
+    let currentProfileImageUrl = '';
+    let selectedProfileImagePreviewUrl = '';
+    let classLayout = 'grid';
 
     // Stores the teacher name loaded from:
     // users/{teacherUid}
     let currentTeacherName = 'Teacher';
+
+    function setProfileName(name) {
+        currentTeacherName = name;
+        const initial = name.charAt(0).toUpperCase() || 'T';
+
+        profileName.textContent = name;
+        profileDetailName.textContent = name;
+        profileInitial.textContent = initial;
+        profileMenuInitial.textContent = initial;
+        profileModalInitial.textContent = initial;
+        profileEditInitial.textContent = initial;
+    }
+
+    function setProfileImage(url) {
+        currentProfileImageUrl = url || '';
+
+        [
+            profileButtonImage,
+            profileMenuImage,
+            profileModalImage
+        ].forEach((image) => {
+            if (currentProfileImageUrl) {
+                image.src = currentProfileImageUrl;
+            } else {
+                image.removeAttribute('src');
+            }
+
+            image.hidden = !currentProfileImageUrl;
+        });
+
+        profileInitial.hidden = Boolean(currentProfileImageUrl);
+        profileMenuInitial.hidden = Boolean(currentProfileImageUrl);
+        profileModalInitial.hidden = Boolean(currentProfileImageUrl);
+    }
+
+    function setProfileEditPreview(url) {
+        if (url) {
+            profileEditImagePreview.src = url;
+        } else {
+            profileEditImagePreview.removeAttribute('src');
+        }
+
+        profileEditImagePreview.hidden = !url;
+        profileEditInitial.hidden = Boolean(url);
+    }
+
+    function clearSelectedProfileImage() {
+        if (selectedProfileImagePreviewUrl) {
+            URL.revokeObjectURL(selectedProfileImagePreviewUrl);
+            selectedProfileImagePreviewUrl = '';
+        }
+
+        profileEditImageInput.value = '';
+        setProfileEditPreview(currentProfileImageUrl);
+    }
+
+    async function uploadProfileImage(file) {
+        const idToken = await currentTeacher.getIdToken();
+        const csrfToken = document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+        if (!csrfToken) {
+            throw new Error('Could not verify the upload request. Refresh the page and try again.');
+        }
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch('/profile/image', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${idToken}`,
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: formData
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.message || 'Could not upload your profile image.'
+            );
+        }
+
+        if (typeof result.profileImageUrl !== 'string' || !result.profileImageUrl) {
+            throw new Error('The image upload returned an invalid response.');
+        }
+
+        return result.profileImageUrl;
+    }
+
+    function setProfileModalMode(mode) {
+        const isEditing = mode === 'edit';
+
+        profileDisplayView.hidden = isEditing;
+        profileEditForm.hidden = !isEditing;
+        profileModalTitle.textContent = isEditing
+            ? 'Edit Profile'
+            : 'Your Profile';
+        profileModalSubtitle.textContent = isEditing
+            ? 'Update the name shown on your account.'
+            : 'Your account information';
+
+        if (isEditing) {
+            profileEditName.value = currentTeacherName;
+            profileEditEmail.value = currentTeacher?.email || '';
+            clearSelectedProfileImage();
+            profileEditName.focus();
+        }
+    }
+
+    function openProfileModal(mode = 'display') {
+        profileMenu.hidden = true;
+        profileButton.setAttribute('aria-expanded', 'false');
+        profileDetailEmail.textContent = currentTeacher?.email || '';
+        profileModal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        setProfileModalMode(mode);
+
+        if (mode === 'display') {
+            closeProfileViewButton.focus();
+        }
+    }
+
+    function closeProfileModal() {
+        profileModal.hidden = true;
+        document.body.style.overflow = '';
+        profileEditForm.reset();
+        if (selectedProfileImagePreviewUrl) {
+            URL.revokeObjectURL(selectedProfileImagePreviewUrl);
+            selectedProfileImagePreviewUrl = '';
+        }
+
+        profileEditImageInput.value = '';
+        setProfileModalMode('display');
+    }
 
 
     /* =====================================================
@@ -524,6 +806,45 @@ if (dashboardPage) {
             .replaceAll("'", '&#039;');
     }
 
+    async function deleteClassSubcollection(
+        classId,
+        subcollectionName
+    ) {
+        const subcollectionSnapshot =
+            await getDocs(
+                collection(
+                    db,
+                    'classes',
+                    classId,
+                    subcollectionName
+                )
+            );
+
+        for (
+            let start = 0;
+            start < subcollectionSnapshot.docs.length;
+            start += 500
+        ) {
+            const batch = writeBatch(db);
+            const documents = subcollectionSnapshot.docs.slice(
+                start,
+                start + 500
+            );
+
+            documents.forEach((documentSnapshot) => {
+                batch.delete(documentSnapshot.ref);
+            });
+
+            await batch.commit();
+        }
+    }
+
+    async function deleteClass(classId) {
+        await deleteClassSubcollection(classId, 'posts');
+        await deleteClassSubcollection(classId, 'students');
+        await deleteDoc(doc(db, 'classes', classId));
+    }
+
 
     /* =====================================================
        RENDER CLASS CARD
@@ -541,6 +862,8 @@ if (dashboardPage) {
 
         card.dataset.classId =
             documentId;
+        card.dataset.yearLevel =
+            classData.yearLevel || '';
 
         const name =
             escapeHtml(
@@ -573,23 +896,37 @@ if (dashboardPage) {
         card.innerHTML = `
             <div class="class-card-top">
 
-                <div class="class-card-icon"></div>
+                <div class="class-card-icon" aria-hidden="true">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
 
-                <button
-                    type="button"
-                    class="class-card-menu"
-                    aria-label="Class options"
-                >
-                    ⋮
-                </button>
+                <div class="class-card-actions">
+                    <button
+                        type="button"
+                        class="class-card-menu"
+                        aria-label="Options for ${name}"
+                        aria-expanded="false"
+                    >
+                        <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                    </button>
+                    <div class="class-card-menu-popover" hidden>
+                        <button
+                            type="button"
+                            class="delete-class-button"
+                        >
+                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                            Delete class
+                        </button>
+                    </div>
+                </div>
 
                 <h2>${name}</h2>
 
-                <p>
+                <p class="class-card-subtitle">
                     ${subjectCode} · ${yearLevel}
                 </p>
 
-                <p>
+                <p class="class-card-description">
                     ${description}
                 </p>
 
@@ -601,9 +938,8 @@ if (dashboardPage) {
 
                     <div>
 
-                        <span
-                            class="class-code-label"
-                        >
+                        <span class="class-code-label">
+                            <i class="fa-solid fa-link" aria-hidden="true"></i>
                             Class Code
                         </span>
 
@@ -623,7 +959,7 @@ if (dashboardPage) {
                                 data-code="${classCode}"
                                 title="Copy class code"
                             >
-                                ⧉
+                                <i class="fa-regular fa-copy" aria-hidden="true"></i>
                             </button>
 
                         </div>
@@ -634,6 +970,7 @@ if (dashboardPage) {
                         <span
                             class="stat-label"
                         >
+                            <i class="fa-solid fa-users" aria-hidden="true"></i>
                             Students
                         </span>
 
@@ -646,11 +983,12 @@ if (dashboardPage) {
                         <span
                             class="stat-label"
                         >
-                            Materials
+                            <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
+                            Posts
                         </span>
 
                         <strong>
-                            ${classData.materialCount || 0}
+                            ${classData.postCount || 0}
                         </strong>
                     </div>
 
@@ -660,11 +998,67 @@ if (dashboardPage) {
                     type="button"
                     class="view-class-button"
                 >
-                    View Class →
+                    View Class
+                    <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                 </button>
 
             </div>
         `;
+
+        const menuButton =
+            card.querySelector('.class-card-menu');
+
+        const menuPopover =
+            card.querySelector('.class-card-menu-popover');
+
+        menuButton.addEventListener('click', () => {
+            const isExpanded =
+                menuButton.getAttribute('aria-expanded') === 'true';
+
+            document.querySelectorAll('.class-card-menu-popover').forEach((menu) => {
+                menu.hidden = true;
+                menu.closest('.class-card')
+                    ?.querySelector('.class-card-menu')
+                    ?.setAttribute('aria-expanded', 'false');
+            });
+
+            menuPopover.hidden = isExpanded;
+            menuButton.setAttribute('aria-expanded', String(!isExpanded));
+        });
+
+        card
+            .querySelector('.delete-class-button')
+            .addEventListener('click', async (event) => {
+                const classTitle =
+                    card.querySelector('.class-card-top h2').textContent;
+
+                if (
+                    !window.confirm(
+                        `Delete "${classTitle}"? This will permanently remove the class, its posts, and its student list.`
+                    )
+                ) {
+                    menuPopover.hidden = true;
+                    menuButton.setAttribute('aria-expanded', 'false');
+                    return;
+                }
+
+                const deleteButton = event.currentTarget;
+                deleteButton.disabled = true;
+                deleteButton.textContent = 'Deleting...';
+
+                try {
+                    await deleteClass(documentId);
+                    await loadClasses();
+                } catch (error) {
+                    console.error(error);
+                    deleteButton.disabled = false;
+                    deleteButton.innerHTML =
+                        '<i class="fa-solid fa-trash" aria-hidden="true"></i> Delete class';
+                    alert(
+                        'Could not delete the class and its related records. Please try again.'
+                    );
+                }
+            });
 
 
         /* =============================================
@@ -679,8 +1073,9 @@ if (dashboardPage) {
                 'click',
                 async (event) => {
 
+                    const copyButton = event.currentTarget;
                     const code =
-                        event.currentTarget
+                        copyButton
                             .dataset.code;
 
                     try {
@@ -688,13 +1083,13 @@ if (dashboardPage) {
                             .clipboard
                             .writeText(code);
 
-                        event.currentTarget
-                            .textContent = '✓';
+                        copyButton.innerHTML =
+                            '<i class="fa-solid fa-check" aria-hidden="true"></i>';
 
                         window.setTimeout(
                             () => {
-                                event.currentTarget
-                                    .textContent = '⧉';
+                                copyButton.innerHTML =
+                                    '<i class="fa-regular fa-copy" aria-hidden="true"></i>';
                             },
                             1200
                         );
@@ -721,6 +1116,43 @@ if (dashboardPage) {
 
         return card;
     }
+
+    function filterClasses() {
+        const searchText = classSearchInput.value.trim().toLowerCase();
+        const selectedYearLevel = yearLevelFilter.value;
+        const cards = Array.from(classesGrid.querySelectorAll('.class-card'));
+        let visibleCount = 0;
+
+        cards.forEach((card) => {
+            const matchesSearch = card.textContent.toLowerCase().includes(searchText);
+            const matchesYearLevel = !selectedYearLevel || card.dataset.yearLevel === selectedYearLevel;
+            const isVisible = matchesSearch && matchesYearLevel;
+
+            card.hidden = !isVisible;
+            if (isVisible) {
+                visibleCount += 1;
+            }
+        });
+
+        classResultsCount.textContent = `${visibleCount} ${visibleCount === 1 ? 'class' : 'classes'}`;
+        noClassResults.hidden = cards.length === 0 || visibleCount > 0;
+    }
+
+
+    function setClassLayout(layout) {
+        classLayout = layout;
+        classesGrid.classList.toggle('is-list-view', layout === 'list');
+        gridViewButton.classList.toggle('is-active', layout === 'grid');
+        listViewButton.classList.toggle('is-active', layout === 'list');
+        gridViewButton.setAttribute('aria-pressed', String(layout === 'grid'));
+        listViewButton.setAttribute('aria-pressed', String(layout === 'list'));
+    }
+
+
+    classSearchInput.addEventListener('input', filterClasses);
+    yearLevelFilter.addEventListener('change', filterClasses);
+    gridViewButton.addEventListener('click', () => setClassLayout('grid'));
+    listViewButton.addEventListener('click', () => setClassLayout('list'));
 
 
     /* =====================================================
@@ -754,23 +1186,31 @@ if (dashboardPage) {
 
             const classDocuments = await Promise.all(
                 snapshot.docs.map(async (classDocument) => {
-
-                    // Get the actual students inside this class
-                    const studentsSnapshot = await getDocs(
-                        collection(
-                            db,
-                            'classes',
-                            classDocument.id,
-                            'students'
-                        )
-                    );
+                    const [studentsSnapshot, postsSnapshot] =
+                        await Promise.all([
+                            getDocs(
+                                collection(
+                                    db,
+                                    'classes',
+                                    classDocument.id,
+                                    'students'
+                                )
+                            ),
+                            getDocs(
+                                collection(
+                                    db,
+                                    'classes',
+                                    classDocument.id,
+                                    'posts'
+                                )
+                            )
+                        ]);
 
                     return {
                         id: classDocument.id,
                         ...classDocument.data(),
-
-                        // Actual number of joined students
-                        studentCount: studentsSnapshot.size
+                        studentCount: studentsSnapshot.size,
+                        postCount: postsSnapshot.size
                     };
                 })
             );
@@ -791,14 +1231,18 @@ if (dashboardPage) {
             );
 
             classesGrid.innerHTML = '';
+            classesLoading.hidden = true;
 
             if (
                 classDocuments.length === 0
             ) {
                 emptyClasses.hidden = false;
+                classResultsCount.textContent = '0 classes';
+                noClassResults.hidden = true;
                 return;
             }
 
+            emptyClasses.hidden = true;
             classDocuments.forEach(
                 (classData) => {
 
@@ -810,10 +1254,13 @@ if (dashboardPage) {
                     );
                 }
             );
+            filterClasses();
+            setClassLayout(classLayout);
 
         } catch (error) {
 
             console.error(error);
+            classesLoading.hidden = true;
 
             classesGrid.innerHTML = `
                 <p class="classes-loading">
@@ -881,41 +1328,38 @@ if (dashboardPage) {
                 if (
                     userDocument.exists()
                 ) {
+                    const userData = userDocument.data();
                     teacherName =
-                        userDocument
-                            .data()
-                            .name ||
+                        userData.name ||
                         teacherName;
+
+                    setProfileImage(
+                        userData.profileImageUrl || user.photoURL || ''
+                    );
+                } else {
+                    setProfileImage(user.photoURL || '');
                 }
 
             } catch (error) {
                 console.error(error);
+                setProfileImage(user.photoURL || '');
             }
-
-
-            /* =============================================
-               IMPORTANT:
-               SAVE NAME FOR CLASS CREATION
-            ============================================= */
-
-            currentTeacherName =
-                teacherName;
 
 
             /* =============================================
                UPDATE PROFILE UI
             ============================================= */
 
-            profileName.textContent =
-                teacherName;
-
             profileEmail.textContent =
                 user.email || '';
 
-            profileInitial.textContent =
-                teacherName
-                    .charAt(0)
-                    .toUpperCase();
+            profileDetailEmail.textContent =
+                user.email || '';
+
+            profileEditEmail.value =
+                user.email || '';
+
+            setProfileName(teacherName);
 
 
             /* =============================================
@@ -948,6 +1392,133 @@ if (dashboardPage) {
         }
     );
 
+    displayProfileButton.addEventListener(
+        'click',
+        () => openProfileModal('display')
+    );
+
+    editProfileButton.addEventListener(
+        'click',
+        () => openProfileModal('edit')
+    );
+
+    startProfileEditButton.addEventListener(
+        'click',
+        () => setProfileModalMode('edit')
+    );
+
+    closeProfileModalButton.addEventListener(
+        'click',
+        closeProfileModal
+    );
+
+    closeProfileViewButton.addEventListener(
+        'click',
+        closeProfileModal
+    );
+
+    cancelProfileEditButton.addEventListener(
+        'click',
+        () => {
+            clearSelectedProfileImage();
+            setProfileModalMode('display');
+        }
+    );
+
+    profileEditImageInput.addEventListener('change', () => {
+        const file = profileEditImageInput.files[0];
+        if (!file) {
+            clearSelectedProfileImage();
+            return;
+        }
+
+        const allowedTypes = [
+            'image/jpeg',
+            'image/png',
+            'image/webp'
+        ];
+
+        if (!allowedTypes.includes(file.type) || file.size > 5 * 1024 * 1024) {
+            clearSelectedProfileImage();
+            alert('Choose a JPG, PNG, or WebP image smaller than 5 MB.');
+            return;
+        }
+
+        if (selectedProfileImagePreviewUrl) {
+            URL.revokeObjectURL(selectedProfileImagePreviewUrl);
+        }
+
+        selectedProfileImagePreviewUrl = URL.createObjectURL(file);
+        setProfileEditPreview(selectedProfileImagePreviewUrl);
+    });
+
+    profileModal.addEventListener('click', (event) => {
+        if (event.target === profileModal) {
+            closeProfileModal();
+        }
+    });
+
+    profileEditForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const name = profileEditName.value.trim();
+        if (!name || !currentTeacher) {
+            profileEditName.focus();
+            return;
+        }
+
+        saveProfileButton.disabled = true;
+        saveProfileButton.textContent = 'Saving...';
+
+        let updatedProfileImageUrl = currentProfileImageUrl;
+        let firestoreProfileSaved = false;
+
+        try {
+            const selectedImage = profileEditImageInput.files[0];
+            if (selectedImage) {
+                saveProfileButton.textContent = 'Uploading photo...';
+                updatedProfileImageUrl =
+                    await uploadProfileImage(selectedImage);
+            }
+
+            saveProfileButton.textContent = 'Saving...';
+            await updateDoc(
+                doc(db, 'users', currentTeacher.uid),
+                {
+                    name,
+                    profileImageUrl: updatedProfileImageUrl
+                }
+            );
+            firestoreProfileSaved = true;
+
+            await updateProfile(currentTeacher, {
+                displayName: name,
+                photoURL: updatedProfileImageUrl || null
+            });
+
+            setProfileName(name);
+            setProfileImage(updatedProfileImageUrl);
+            profileDetailEmail.textContent =
+                currentTeacher.email || '';
+            profileEmail.textContent =
+                currentTeacher.email || '';
+            closeProfileModal();
+        } catch (error) {
+            console.error(error);
+            if (firestoreProfileSaved) {
+                setProfileName(name);
+                setProfileImage(updatedProfileImageUrl);
+                closeProfileModal();
+                alert('Your profile was saved, but could not be synchronized with your sign-in profile.');
+            } else {
+                alert(error.message || 'Could not update your profile. Please try again.');
+            }
+        } finally {
+            saveProfileButton.disabled = false;
+            saveProfileButton.textContent = 'Save changes';
+        }
+    });
+
 
     document.addEventListener(
         'click',
@@ -971,6 +1542,39 @@ if (dashboardPage) {
             }
         }
     );
+
+    document.addEventListener('click', (event) => {
+        if (
+            event.target instanceof Element &&
+            event.target.closest('.class-card-actions')
+        ) {
+            return;
+        }
+
+        document.querySelectorAll('.class-card-menu-popover').forEach((menu) => {
+            menu.hidden = true;
+            menu.closest('.class-card')
+                ?.querySelector('.class-card-menu')
+                ?.setAttribute('aria-expanded', 'false');
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') {
+            return;
+        }
+
+        if (!profileModal.hidden) {
+            closeProfileModal();
+        }
+
+        document.querySelectorAll('.class-card-menu-popover').forEach((menu) => {
+            menu.hidden = true;
+            menu.closest('.class-card')
+                ?.querySelector('.class-card-menu')
+                ?.setAttribute('aria-expanded', 'false');
+        });
+    });
 
 
     /* =====================================================
@@ -1172,8 +1776,6 @@ if (dashboardPage) {
 
                         classCode:
                             classCode,
-
-                        materialCount: 0,
 
                         createdAt:
                             serverTimestamp()

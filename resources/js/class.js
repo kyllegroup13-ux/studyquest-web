@@ -14,14 +14,21 @@ const classPage = document.querySelector('#class-page');
 const classId = classPage?.dataset.classId;
 
 const className = document.querySelector('#class-name');
-const subjectCode = document.querySelector('#subject-code');
+const courseCode = document.querySelector('#course-code');
+const classCode = document.querySelector('#class-code');
+const yearLevel = document.querySelector('#year-level');
 const courseInitials = document.querySelector('#course-initials');
 const profileInitial = document.querySelector('#profile-initial');
 const studentsList = document.querySelector('#students-list');
 const studentsLoading = document.querySelector('#students-loading');
 const studentsEmpty = document.querySelector('#students-empty');
 const studentCount = document.querySelector('#student-count');
+const summaryStudentCount = document.querySelector('#summary-student-count');
+const viewAllStudentsButton = document.querySelector('#view-all-students');
+const viewStudentsLabel = document.querySelector('#view-students-label');
+const viewStudentsIcon = document.querySelector('#view-students-icon');
 const postsList = document.querySelector('#posts-list');
+const postCount = document.querySelector('#post-count');
 
 const modal = document.querySelector('#post-modal');
 const addPostButton = document.querySelector('#add-post-button');
@@ -39,6 +46,7 @@ const postUploadImageReplace = document.querySelector('#post-upload-image-replac
 
 let currentUser = null;
 let currentUserName = 'User';
+let currentProfileImageUrl = '';
 let currentClass = null;
 let isTeacher = false;
 let imagePreviewUrl = null;
@@ -93,16 +101,22 @@ function clearPostImagePreview() {
 }
 
 function updatePostFilePreview() {
-    const file = postFileInput.files?.[0];
-    postFileName.textContent = file ? file.name : 'No file selected';
+    const files = Array.from(postFileInput.files || []);
+    postFileName.textContent = files.length
+        ? `Selected files (${files.length}): ${files.map(file => file.name).join(', ')}`
+        : 'No file selected';
     clearPostImagePreview();
 
-    if (!file?.type.startsWith('image/')) return;
+    const imageFile = files.find(file => file.type.startsWith('image/'));
+    if (!imageFile) return;
 
-    imagePreviewUrl = URL.createObjectURL(file);
+    imagePreviewUrl = URL.createObjectURL(imageFile);
     postImagePreview.src = imagePreviewUrl;
     postImagePreview.hidden = false;
     postUploadContent.hidden = true;
+    postUploadImageReplace.textContent = files.length > 1
+        ? 'Click to change selected files'
+        : 'Click to change image';
     postUploadImageReplace.hidden = false;
     postUploadBox.classList.add('has-image');
 }
@@ -121,7 +135,27 @@ function renderPost(post) {
     const avatar = document.createElement('div');
     avatar.className = 'sq-avatar';
     avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = firstInitial(post.authorName);
+
+    const initial = document.createElement('span');
+    initial.textContent = firstInitial(post.authorName);
+    avatar.append(initial);
+
+    const authorImageUrl = post.authorId === currentUser?.uid
+        ? currentProfileImageUrl
+        : post.authorImageUrl;
+
+    if (authorImageUrl) {
+        initial.hidden = true;
+
+        const image = document.createElement('img');
+        image.src = authorImageUrl;
+        image.alt = '';
+        image.addEventListener('error', () => {
+            image.remove();
+            initial.hidden = false;
+        }, { once: true });
+        avatar.append(image);
+    }
 
     const authorDetails = document.createElement('div');
     const authorName = document.createElement('p');
@@ -143,23 +177,47 @@ function renderPost(post) {
 
     article.append(author, title, description);
 
-    if (post.fileName) {
-        const attachment = document.createElement('div');
-        attachment.className = 'sq-post-attachment';
-        const icon = document.createElement('span');
-        icon.setAttribute('aria-hidden', 'true');
-        icon.textContent = '📎';
-        const link = document.createElement('a');
-        link.textContent = post.fileName;
-        link.href = post.fileUrl || '#';
-        if (post.fileUrl) {
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-        } else {
-            link.addEventListener('click', event => event.preventDefault());
-        }
-        attachment.append(icon, link);
-        article.append(attachment);
+    const attachments = Array.isArray(post.attachments) && post.attachments.length
+        ? post.attachments
+        : (post.fileName ? [{ fileName: post.fileName, fileUrl: post.fileUrl }] : []);
+
+    if (attachments.length) {
+        const attachmentList = document.createElement('div');
+        attachmentList.className = 'sq-post-attachments';
+
+        attachments.forEach(file => {
+            const attachment = document.createElement('div');
+            attachment.className = 'sq-post-attachment';
+            const icon = document.createElement('span');
+            const extension = file.fileName?.split('.').pop()?.toLowerCase() || '';
+            const iconClass = extension === 'pdf'
+                ? 'fa-file-pdf'
+                : ['doc', 'docx'].includes(extension)
+                    ? 'fa-file-word'
+                    : ['ppt', 'pptx'].includes(extension)
+                        ? 'fa-file-powerpoint'
+                        : ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)
+                            ? 'fa-file-image'
+                            : 'fa-file';
+            icon.className = `sq-attachment-icon sq-attachment-icon-${extension || 'generic'}`;
+            icon.setAttribute('aria-hidden', 'true');
+            const fileIcon = document.createElement('i');
+            fileIcon.className = `fa-solid ${iconClass}`;
+            icon.append(fileIcon);
+            const link = document.createElement('a');
+            link.textContent = file.fileName;
+            link.href = file.fileUrl || '#';
+            if (file.fileUrl) {
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+            } else {
+                link.addEventListener('click', event => event.preventDefault());
+            }
+            attachment.append(icon, link);
+            attachmentList.append(attachment);
+        });
+
+        article.append(attachmentList);
     }
 
     return article;
@@ -169,6 +227,7 @@ async function loadPosts() {
     postsList.innerHTML = '<p class="sq-post-empty">Loading posts...</p>';
     const snapshot = await getDocs(collection(db, 'classes', classId, 'posts'));
     const posts = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+    postCount.textContent = String(posts.length);
     posts.sort((a, b) => {
         const aTime = a.createdAt?.toMillis?.() || 0;
         const bTime = b.createdAt?.toMillis?.() || 0;
@@ -187,7 +246,13 @@ async function loadStudents() {
     studentsList.innerHTML = '';
     const snapshot = await getDocs(collection(db, 'classes', classId, 'students'));
     studentCount.textContent = String(snapshot.size);
+    summaryStudentCount.textContent = String(snapshot.size);
     studentsLoading.hidden = true;
+    viewAllStudentsButton.hidden = !isTeacher || snapshot.empty;
+    document.querySelector('.sq-students-panel').classList.remove('is-expanded');
+    viewAllStudentsButton.setAttribute('aria-expanded', 'false');
+    viewStudentsLabel.textContent = 'View all students';
+    viewStudentsIcon.className = 'fa-solid fa-arrow-right';
 
     if (!isTeacher) {
         // Enrolled students can view class posts; student roster is teacher-only.
@@ -204,18 +269,35 @@ async function loadStudents() {
     studentsEmpty.hidden = true;
     snapshot.forEach(studentDoc => {
         const student = studentDoc.data();
+        const fullName = student.fullName || student.name || 'Student';
         const row = document.createElement('div');
         row.className = 'sq-student-row';
 
         const avatar = document.createElement('div');
         avatar.className = 'sq-student-avatar';
         avatar.setAttribute('aria-hidden', 'true');
-        avatar.textContent = firstInitial(student.name);
+
+        const initial = document.createElement('span');
+        initial.textContent = firstInitial(fullName);
+        avatar.append(initial);
+
+        if (student.profileImageUrl) {
+            initial.hidden = true;
+
+            const image = document.createElement('img');
+            image.src = student.profileImageUrl;
+            image.alt = '';
+            image.addEventListener('error', () => {
+                image.remove();
+                initial.hidden = false;
+            }, { once: true });
+            avatar.append(image);
+        }
 
         const details = document.createElement('div');
         const name = document.createElement('p');
         name.className = 'sq-student-name';
-        name.textContent = student.name || 'Student';
+        name.textContent = fullName;
         const email = document.createElement('p');
         email.className = 'sq-student-date';
         email.textContent = student.email || '';
@@ -249,8 +331,18 @@ async function uploadAttachment(file) {
     return data;
 }
 
+async function uploadAttachments(files) {
+    const attachments = [];
+    for (const file of files) {
+        attachments.push(await uploadAttachment(file));
+    }
+    return attachments;
+}
+
+
 async function submitPost(event) {
     event.preventDefault();
+
     if (!currentUser || !isTeacher) {
         alert('Only the class teacher can publish posts.');
         return;
@@ -258,55 +350,104 @@ async function submitPost(event) {
 
     const title = postTitleInput.value.trim();
     const description = postDescriptionInput.value.trim();
-    const file = postFileInput.files?.[0];
+    const files = Array.from(postFileInput.files || []);
 
     if (!title) {
         postTitleInput.focus();
         return;
     }
-    if (file && file.size > 10 * 1024 * 1024) {
-        alert('The selected file is larger than 10 MB.');
+
+    const oversizedFiles = files.filter(file => file.size > 10 * 1024 * 1024);
+    if (oversizedFiles.length) {
+        alert(`Each file must be 10 MB or smaller. Remove: ${oversizedFiles.map(file => file.name).join(', ')}`);
         return;
     }
 
-    const submitButton = addPostForm.querySelector('button[type="submit"]');
+    const submitButton = addPostForm.querySelector(
+        'button[type="submit"]'
+    );
+
     const originalText = submitButton.textContent;
+
     submitButton.disabled = true;
     submitButton.textContent = 'Publishing...';
 
     try {
-        let fileUrl = '';
-        let fileName = '';
-        let filePublicId = '';
+        // 1. Upload attachments using the existing Cloudinary endpoint.
+        const attachments = files.length ? await uploadAttachments(files) : [];
+        const primaryAttachment = attachments[0] || {};
 
-        if (file) {
-            const uploaded = await uploadAttachment(file);
-            fileName = uploaded.fileName;
-            fileUrl = uploaded.fileUrl;
-            filePublicId = uploaded.filePublicId;
+        // 2. Obtain the signed-in teacher's Firebase ID token.
+        const idToken = await currentUser.getIdToken();
+
+        // 3. Get Laravel's CSRF token.
+        const csrfToken = document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+        if (!csrfToken) {
+            throw new Error(
+                'CSRF token is missing. Please refresh the page.'
+            );
         }
 
-        await addDoc(collection(db, 'classes', classId, 'posts'), {
-            title,
-            description,
-            authorId: currentUser.uid,
-            authorName: currentUserName,
-            fileName,
-            filePublicId,
-            fileUrl,
-            createdAt: serverTimestamp()
+        // 4. Publish through the Laravel backend.
+        const response = await fetch('/class/posts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                classId,
+                title,
+                description,
+                fileName: primaryAttachment.fileName || '',
+                filePublicId: primaryAttachment.filePublicId || '',
+                fileUrl: primaryAttachment.fileUrl || '',
+                attachments
+            })
         });
 
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.message || 'Could not publish the announcement.'
+            );
+        }
+
+        // 5. Confirm publication.
+        console.log('Announcement published:', result.postId);
+
+        if (result.notificationSent) {
+            console.log('FCM notification accepted by Firebase.');
+        } else {
+            console.warn(
+                'Announcement saved, but notification sending failed.'
+            );
+        }
+
+        // 6. Refresh class posts and close the modal.
         await loadPosts();
         closePostModal();
+
     } catch (error) {
         console.error('Could not publish class post:', error);
-        alert(error.message || 'Could not publish this post. Please try again.');
+
+        alert(
+            error.message ||
+            'Could not publish this post. Please try again.'
+        );
+
     } finally {
         submitButton.disabled = false;
         submitButton.textContent = originalText;
     }
 }
+
 
 document.addEventListener('input', event => {
     if (event.target.id === 'student-search') {
@@ -322,6 +463,12 @@ document.addEventListener('input', event => {
 });
 
 addPostButton?.addEventListener('click', openPostModal);
+viewAllStudentsButton?.addEventListener('click', () => {
+    const isExpanded = document.querySelector('.sq-students-panel').classList.toggle('is-expanded');
+    viewAllStudentsButton.setAttribute('aria-expanded', String(isExpanded));
+    viewStudentsLabel.textContent = isExpanded ? 'Show fewer students' : 'View all students';
+    viewStudentsIcon.className = isExpanded ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-right';
+});
 closePostModalButton?.addEventListener('click', closePostModal);
 cancelPostModalButton?.addEventListener('click', closePostModal);
 modal?.addEventListener('click', event => {
@@ -370,10 +517,13 @@ onAuthStateChanged(auth, async user => {
 
         const userData = userSnapshot.exists() ? userSnapshot.data() : {};
         currentUserName = userData.name || user.displayName || user.email?.split('@')[0] || 'User';
+        currentProfileImageUrl = userData.profileImageUrl || user.photoURL || '';
         setInitial(profileInitial, currentUserName);
 
         className.textContent = currentClass.className || 'Unnamed Class';
-        subjectCode.textContent = `${currentClass.subjectCode || currentClass.classCode || ''} • ${currentClass.yearLevel || ''}`;
+        courseCode.textContent = currentClass.subjectCode || '—';
+        classCode.textContent = currentClass.classCode || '—';
+        yearLevel.textContent = currentClass.yearLevel || '—';
         setInitial(courseInitials, currentClass.className || 'Class');
 
         if (!isTeacher) {
