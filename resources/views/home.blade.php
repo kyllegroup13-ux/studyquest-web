@@ -26,7 +26,7 @@
 
                 <div class="features">
                     <div class="feature-item">
-                        <img src="{{ Vite::asset('resources/images/upload-icon.png') }}" alt="" class="feature-icon">
+                        <img src="{{ asset('images/upload-icon.png') }}" alt="" class="feature-icon">
                         <div>
                             <h2>Upload Materials</h2>
                             <p>Share resources with ease.</p>
