@@ -34,7 +34,7 @@
                     </div>
 
                     <div class="feature-item">
-                        <img src="{{ Vite::asset('resources/images/manage-icon.png') }}" alt="" class="feature-icon">
+                        <img src="{{ asset('images/manage-icon.png') }}" alt="" class="feature-icon">
                         <div>
                             <h2>Manage Your Classes</h2>
                             <p>Connect with your students.</p>
@@ -42,7 +42,7 @@
                     </div>
 
                     <div class="feature-item">
-                        <img src="{{ Vite::asset('resources/images/monitor-icon.png') }}" alt="" class="feature-icon">
+                        <img src="{{ asset('images/monitor-icon.png') }}" alt="" class="feature-icon">
                         <div>
                             <h2>Monitor Progress</h2>
                             <p>See how your students are<br>learning.</p>

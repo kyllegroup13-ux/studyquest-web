@@ -18,7 +18,7 @@
         <div class="sq-topbar-inner">
             <div class="sq-header-actions">
                 <a class="sq-brand" href="/dashboard" aria-label="StudyQuest dashboard">
-                    <img src="{{ Vite::asset('resources/images/logo.png') }}" alt="StudyQuest logo" class="sq-brand-mark">
+                    <img src="{{ asset('images/logo.png') }}" alt="StudyQuest logo" class="sq-brand-mark">
                     <span>StudyQuest</span>
                 </a>
                 <a class="sq-back-link" href="/dashboard" aria-label="Back to dashboard">

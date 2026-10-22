@@ -11,7 +11,7 @@
     <header class="dashboard-header">
         <div class="dashboard-header-inner">
             <a href="/dashboard" class="dashboard-brand">
-                <img src="{{ Vite::asset('resources/images/logo.png') }}" alt="StudyQuest logo">
+                <img src="{{ asset('images/logo.png') }}" alt="StudyQuest logo">
                 <span>StudyQuest</span>
             </a>
 
