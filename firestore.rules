@@ -33,12 +33,98 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    
     match /users/{userId}/generatedGames/{gameId} {
-      allow read, create, delete: if request.auth != null
-        && request.auth.uid == userId;
 
+      function isOwner() {
+        return request.auth != null
+          && request.auth.uid == userId;
+      }
+
+      // Existing reviewer permissions
+      allow read, create, delete: if isOwner();
       allow update: if false;
+
+      // Reviewer progress summary
+      match /progress/{progressId} {
+        allow read: if isOwner();
+
+        allow create, update: if isOwner()
+          && progressId == 'summary'
+          && request.resource.data.keys().hasAll([
+            'totalAttempts',
+            'bestScore',
+            'status',
+            'lastAttemptAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'totalAttempts',
+            'bestScore',
+            'status',
+            'lastAttemptAt',
+            'masteredAt'
+          ])
+          && request.resource.data.totalAttempts is int
+          && request.resource.data.totalAttempts > 0
+          && request.resource.data.bestScore is number
+          && request.resource.data.bestScore >= 0
+          && request.resource.data.bestScore <= 100
+          && request.resource.data.status in [
+            'in_progress',
+            'mastered'
+      ]
+          && request.resource.data.lastAttemptAt == request.time
+          && (
+            !request.resource.data.keys().hasAny(['masteredAt'])
+            || request.resource.data.masteredAt is timestamp
+          );
+
+        allow delete: if false;
+      }
+
+      // Individual game attempts
+      match /attempts/{attemptId} {
+        allow read: if isOwner();
+
+        allow create: if isOwner()
+          && request.resource.data.keys().hasAll([
+            'attemptNumber',
+            'correctAnswers',
+            'totalQuestions',
+            'mistakes',
+            'score',
+            'mastered',
+            'completedAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+            'attemptNumber',
+            'correctAnswers',
+            'totalQuestions',
+            'mistakes',
+            'score',
+            'mastered',
+            'completedAt'
+          ])
+          && request.resource.data.attemptNumber is int
+          && request.resource.data.attemptNumber > 0
+          && request.resource.data.totalQuestions is int
+          && request.resource.data.totalQuestions > 0
+          && request.resource.data.correctAnswers is int
+          && request.resource.data.correctAnswers >= 0
+          && request.resource.data.correctAnswers
+            <= request.resource.data.totalQuestions
+          && request.resource.data.mistakes is int
+          && request.resource.data.mistakes >= 0
+          && request.resource.data.score is number
+          && request.resource.data.score >= 0
+          && request.resource.data.score <= 100
+          && request.resource.data.mastered is bool
+          && request.resource.data.completedAt == request.time;
+
+        allow update, delete: if false;
+      }
     }
+
 
     match /users/{userId}/activityHistory/{eventId} {
       function isOwner() {
