@@ -42,6 +42,11 @@ class ClassPostController extends Controller
             $verifiedToken = Firebase::auth()->verifyIdToken($idToken);
             $uid = $verifiedToken->claims()->get('sub');
         } catch (Throwable $e) {
+            Log::error('Firebase ID token verification failed', [
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'message' => 'Your session is invalid or expired.',
             ], 401);
@@ -136,7 +141,7 @@ class ClassPostController extends Controller
             $fields['attachments'] = [
                 'arrayValue' => [
                     'values' => array_map(
-                        static fn (array $attachment): array => [
+                        static fn(array $attachment): array => [
                             'mapValue' => [
                                 'fields' => [
                                     'fileName' => ['stringValue' => $attachment['fileName']],
@@ -196,7 +201,7 @@ class ClassPostController extends Controller
         try {
             $message = CloudMessage::withTarget(
                 'topic',
-                'class_'.$classId
+                'class_' . $classId
             )
                 ->withNotification(
                     Notification::create(
