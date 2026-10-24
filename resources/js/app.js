@@ -1169,6 +1169,42 @@ if (dashboardPage) {
     listViewButton.addEventListener('click', () => setClassLayout('list'));
 
 
+    // =====================================================
+    // SYNCHRONIZE TEACHER PROFILE WITH EXISTING CLASSES
+    // =====================================================
+
+    async function syncTeacherProfileToClasses(name, imageUrl) {
+        if (!currentTeacher) {
+            throw new Error('Teacher is not authenticated.');
+        }
+
+        const classesQuery = query(
+            collection(db, 'classes'),
+            where('teacherId', '==', currentTeacher.uid)
+        );
+
+        const snapshot = await getDocs(classesQuery);
+
+        // Firestore batches have write limits.
+        // Use smaller chunks to support multiple classes.
+        const chunkSize = 200;
+
+        for (let start = 0; start < snapshot.docs.length; start += chunkSize) {
+            const batch = writeBatch(db);
+
+            const chunk = snapshot.docs.slice(start, start + chunkSize);
+
+            chunk.forEach((classDocument) => {
+                batch.update(classDocument.ref, {
+                    teacherName: name,
+                    teacherProfileImageUrl: imageUrl || ''
+                });
+            });
+
+            await batch.commit();
+        }
+    }
+
     /* =====================================================
        LOAD TEACHER CLASSES
     ===================================================== */
@@ -1505,6 +1541,22 @@ if (dashboardPage) {
             );
             firestoreProfileSaved = true;
 
+            // Update teacher information in all owned classes.
+            let classesSynchronized = true;
+
+            try {
+                await syncTeacherProfileToClasses(
+                    name,
+                    updatedProfileImageUrl
+                );
+            } catch (syncError) {
+                classesSynchronized = false;
+                console.error(
+                    'Teacher profile saved, but class synchronization failed:',
+                    syncError
+                );
+            }
+
             await updateProfile(currentTeacher, {
                 displayName: name,
                 photoURL: updatedProfileImageUrl || null
@@ -1517,6 +1569,11 @@ if (dashboardPage) {
             profileEmail.textContent =
                 currentTeacher.email || '';
             closeProfileModal();
+            if (!classesSynchronized) {
+                alert(
+                    'Your profile was saved, but some class profiles may not have updated. Please try saving your profile again.'
+                );
+            }
         } catch (error) {
             console.error(error);
             if (firestoreProfileSaved) {
@@ -1775,6 +1832,10 @@ if (dashboardPage) {
                         // Teacher name copied from users/{uid}
                         teacherName:
                             currentTeacherName,
+
+                        // Teacher profile image for Flutter People tab
+                        teacherProfileImageUrl:
+                            currentProfileImageUrl || '',
 
                         className:
                             className,
