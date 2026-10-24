@@ -95,9 +95,13 @@ class ClassPostController extends Controller
         try {
             $credentialsPath = config('firebase.projects.app.credentials');
 
+            $resolvedPath = str_starts_with($credentialsPath, '/')
+                ? $credentialsPath
+                : base_path($credentialsPath);
+
             $credentials = new ServiceAccountCredentials(
                 ['https://www.googleapis.com/auth/datastore'],
-                base_path($credentialsPath)
+                $resolvedPath
             );
 
             $token = $credentials->fetchAuthToken();
