@@ -27,6 +27,14 @@ Route::post('/class/posts', [ClassPostController::class, 'publish'])
     ->middleware('throttle:20,1')
     ->name('class.posts.publish');
 
+Route::patch('/class/posts/{postId}', [ClassPostController::class, 'update'])
+    ->middleware('throttle:20,1')
+    ->name('class.posts.update');
+
+Route::delete('/class/posts/{postId}', [ClassPostController::class, 'destroy'])
+    ->middleware('throttle:20,1')
+    ->name('class.posts.destroy');
+
 Route::post('/profile/image', [ProfileImageController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('profile.image.store');

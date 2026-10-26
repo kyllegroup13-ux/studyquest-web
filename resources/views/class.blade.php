@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     @vite([
-        'resources/css/app.css',
-        'resources/css/class.css',
-        'resources/js/class.js'
+    'resources/css/app.css',
+    'resources/css/class.css',
+    'resources/js/class.js'
     ])
 </head>
 
@@ -146,6 +147,11 @@
 
                 <div class="sq-divider"></div>
 
+                <div id="existing-attachments-section" hidden>
+                    <label>Current Attachments</label>
+                    <div id="existing-attachments-list"></div>
+                </div>
+
                 <div class="sq-upload-wrapper">
                     <label class="sq-upload-box" for="post-file">
                         <input id="post-file" name="post_files[]" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp" multiple>
@@ -164,7 +170,9 @@
 
                 <div class="sq-post-actions">
                     <button class="sq-cancel-button" type="button" id="cancel-post-modal">Cancel</button>
-                    <button class="sq-submit-post" type="submit">+ Add Post</button>
+                    <button class="sq-submit-post" id="submit-post-button" type="submit">
+                        + Add Post
+                    </button>
                 </div>
             </form>
         </div>
@@ -172,4 +180,5 @@
 
 
 </body>
+
 </html>

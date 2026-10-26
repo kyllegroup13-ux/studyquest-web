@@ -12,9 +12,12 @@
     --sq-radius: 18px;
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
     margin: 0;
     min-height: 100%;
 }
@@ -135,7 +138,9 @@ a {
     align-items: start;
 }
 
-.sq-main { min-width: 0; }
+.sq-main {
+    min-width: 0;
+}
 
 .sq-course-banner {
     min-height: 178px;
@@ -203,8 +208,8 @@ a {
     background: rgba(255, 255, 255, 0.72);
 }
 
-.sq-meta-item > span:last-child,
-.sq-course-stat > span:last-child {
+.sq-meta-item>span:last-child,
+.sq-course-stat>span:last-child {
     display: grid;
     gap: 2px;
 }
@@ -292,7 +297,7 @@ a {
     gap: 16px;
 }
 
-.sq-posts-heading > div {
+.sq-posts-heading>div {
     min-width: 0;
 }
 
@@ -333,7 +338,7 @@ a {
     box-shadow: 0 6px 14px rgba(39, 181, 239, 0.24);
 }
 
-.sq-add-post > i {
+.sq-add-post>i {
     font-size: 14px;
 }
 
@@ -499,7 +504,7 @@ a {
     padding: 30px 20px;
     border: 1px dashed #bfd9f5;
     border-radius: var(--sq-radius);
-    background: rgba(255,255,255,0.55);
+    background: rgba(255, 255, 255, 0.55);
     color: var(--sq-muted);
     font-size: 15px;
     text-align: center;
@@ -901,7 +906,7 @@ a {
     background: #dff0ff;
 }
 
-.sq-view-students > i {
+.sq-view-students>i {
     font-size: 12px;
 }
 
@@ -952,12 +957,15 @@ a {
     overflow-wrap: anywhere;
 }
 
-#students-loading, #students-empty {
+#students-loading,
+#students-empty {
     color: var(--sq-muted);
     font-size: 14px;
 }
 
-[hidden] { display: none !important; }
+[hidden] {
+    display: none !important;
+}
 
 button,
 a,
@@ -974,6 +982,119 @@ textarea:focus-visible,
 .sq-upload-box:focus-within {
     outline: 3px solid rgba(39, 181, 239, 0.48);
     outline-offset: 2px;
+}
+
+.sq-post-author {
+    position: relative;
+}
+
+.sq-post-menu {
+    margin-left: auto;
+    position: relative;
+}
+
+.sq-post-menu-button {
+    border: none;
+    background: transparent;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.sq-post-menu-button:hover {
+    background: #f1f5f9;
+}
+
+.sq-post-menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 20;
+    min-width: 140px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 5px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.sq-post-menu-dropdown[hidden] {
+    display: none;
+}
+
+.sq-post-menu-dropdown button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: left;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.sq-post-menu-dropdown button:hover {
+    background: #f1f5f9;
+}
+
+.sq-post-menu-dropdown .sq-post-delete {
+    color: #dc2626;
+}
+
+.sq-post-menu-dropdown .sq-post-delete:hover {
+    background: #fef2f2;
+}
+
+.sq-upload-wrapper[hidden] {
+    display: none;
+}
+
+#existing-attachments-section {
+    margin-bottom: 18px;
+}
+
+#existing-attachments-section[hidden] {
+    display: none;
+}
+
+#existing-attachments-section>label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.sq-existing-attachment {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.sq-existing-attachment span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+}
+
+.sq-existing-attachment button {
+    flex-shrink: 0;
+    border: none;
+    background: #fee2e2;
+    color: #dc2626;
+    border-radius: 6px;
+    padding: 7px 12px;
+    cursor: pointer;
+}
+
+.sq-existing-attachment button:hover {
+    background: #fecaca;
 }
 
 @media (max-width: 960px) {
@@ -1112,7 +1233,7 @@ textarea:focus-visible,
         gap: 7px;
     }
 
-    .sq-add-post > i {
+    .sq-add-post>i {
         font-size: 13px;
     }
 
@@ -1275,6 +1396,7 @@ textarea:focus-visible,
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {

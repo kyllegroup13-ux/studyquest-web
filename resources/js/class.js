@@ -50,6 +50,9 @@ let currentProfileImageUrl = '';
 let currentClass = null;
 let isTeacher = false;
 let imagePreviewUrl = null;
+let editingPostId = null;
+let retainedAttachments = [];
+let editingOriginalAttachments = [];
 
 function firstInitial(name) {
     return (String(name || '').trim().charAt(0) || 'U').toUpperCase();
@@ -70,19 +73,138 @@ function updateCounter(inputId, countId, maxLength) {
     if (input && counter) counter.textContent = `${input.value.length} / ${maxLength}`;
 }
 
-function openPostModal() {
+function getPostAttachments(post) {
+    if (Array.isArray(post.attachments) && post.attachments.length) {
+        return post.attachments.map(file => ({
+            fileName: file.fileName || '',
+            fileUrl: file.fileUrl || '',
+            filePublicId: file.filePublicId || ''
+        }));
+    }
+
+    if (post.fileName && post.fileUrl) {
+        return [{
+            fileName: post.fileName,
+            fileUrl: post.fileUrl,
+            filePublicId: post.filePublicId || ''
+        }];
+    }
+
+    return [];
+}
+
+function renderExistingAttachments() {
+    const section = document.querySelector('#existing-attachments-section');
+    const list = document.querySelector('#existing-attachments-list');
+
+    if (!section || !list) return;
+
+    list.replaceChildren();
+    section.hidden = !editingPostId;
+
+    if (!editingPostId) return;
+
+    if (retainedAttachments.length === 0) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No existing attachments.';
+        list.append(empty);
+        return;
+    }
+
+    retainedAttachments.forEach((file, index) => {
+        const row = document.createElement('div');
+        row.className = 'sq-existing-attachment';
+
+        const name = document.createElement('span');
+        name.textContent = file.fileName;
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.textContent = 'Remove';
+
+        removeButton.addEventListener('click', () => {
+            retainedAttachments.splice(index, 1);
+            renderExistingAttachments();
+        });
+
+        row.append(name, removeButton);
+        list.append(row);
+    });
+}
+
+function openPostModal(post = null) {
     if (!isTeacher) return;
+
+    editingPostId = post?.id || null;
+
+    editingOriginalAttachments = post
+        ? getPostAttachments(post)
+        : [];
+
+    retainedAttachments = editingOriginalAttachments.map(file => ({ ...file }));
+
+    renderExistingAttachments();
+
+    postTitleInput.value = post?.title || '';
+    postDescriptionInput.value = post?.description || '';
+
+    document.querySelector('#post-modal-title').textContent =
+        editingPostId ? 'Edit Post' : 'Add Post';
+
+    document.querySelector('#submit-post-button').textContent =
+        editingPostId ? 'Save Changes' : '+ Add Post';
+
+    const uploadWrapper = document.querySelector('.sq-upload-wrapper');
+
+    if (uploadWrapper) {
+        uploadWrapper.hidden = false;
+    }
+
+    updateCounter('post-title', 'post-title-count', 100);
+    updateCounter('post-description', 'post-description-count', 200);
+
     modal?.classList.add('is-open');
     modal?.setAttribute('aria-hidden', 'false');
+
     window.setTimeout(() => postTitleInput?.focus(), 50);
 }
 
 function closePostModal() {
     modal?.classList.remove('is-open');
     modal?.setAttribute('aria-hidden', 'true');
+
+    // Reset the form.
     addPostForm?.reset();
-    if (postFileName) postFileName.textContent = 'No file selected';
+
+    // Reset editing state.
+    editingPostId = null;
+
+    retainedAttachments = [];
+    editingOriginalAttachments = [];
+
+    renderExistingAttachments();
+
+    // Restore the original modal title.
+    document.querySelector('#post-modal-title').textContent = 'Add Post';
+
+    // Restore the original submit button.
+    document.querySelector('#submit-post-button').textContent = '+ Add Post';
+
+    // Show the upload section again.
+    const uploadWrapper = document.querySelector('.sq-upload-wrapper');
+
+    if (uploadWrapper) {
+        uploadWrapper.hidden = false;
+    }
+
+    // Reset file information.
+    if (postFileName) {
+        postFileName.textContent = 'No file selected';
+    }
+
     clearPostImagePreview();
+
+    // Reset character counters.
     updateCounter('post-title', 'post-title-count', 100);
     updateCounter('post-description', 'post-description-count', 200);
 }
@@ -166,6 +288,53 @@ function renderPost(post) {
     date.textContent = formatDate(post.createdAt);
     authorDetails.append(authorName, date);
     author.append(avatar, authorDetails);
+
+    // Show post management options only to the teacher who created the post.
+    if (isTeacher && post.authorId === currentUser?.uid) {
+        const actions = document.createElement('div');
+        actions.className = 'sq-post-menu';
+
+        const menuButton = document.createElement('button');
+        menuButton.type = 'button';
+        menuButton.className = 'sq-post-menu-button';
+        menuButton.innerHTML = '<i class="fa-solid fa-ellipsis"></i>';
+        menuButton.setAttribute('aria-label', 'Post options');
+        menuButton.setAttribute('aria-expanded', 'false');
+
+        const menu = document.createElement('div');
+        menu.className = 'sq-post-menu-dropdown';
+        menu.hidden = true;
+
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.innerHTML = '<i class="fa-solid fa-pen"></i> Edit';
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'sq-post-delete';
+        deleteButton.innerHTML = '<i class="fa-solid fa-trash"></i> Delete';
+
+        menuButton.addEventListener('click', () => {
+            menu.hidden = !menu.hidden;
+            menuButton.setAttribute('aria-expanded', String(!menu.hidden));
+        });
+
+        editButton.addEventListener('click', () => {
+            menu.hidden = true;
+            menuButton.setAttribute('aria-expanded', 'false');
+            openPostModal(post);
+        });
+
+        deleteButton.addEventListener('click', async () => {
+            menu.hidden = true;
+            menuButton.setAttribute('aria-expanded', 'false');
+            await deletePost(post);
+        });
+
+        menu.append(editButton, deleteButton);
+        actions.append(menuButton, menu);
+        author.append(actions);
+    }
 
     const title = document.createElement('h3');
     title.className = 'sq-post-title';
@@ -339,6 +508,62 @@ async function uploadAttachments(files) {
     return attachments;
 }
 
+async function deletePost(post) {
+    if (!currentUser || !isTeacher) {
+        alert('Only the class teacher can delete posts.');
+        return;
+    }
+
+    const confirmed = window.confirm(
+        `Are you sure you want to delete "${post.title || 'Untitled post'}"?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        // Get the teacher's Firebase ID token.
+        const idToken = await currentUser.getIdToken();
+
+        // Send the deletion request to Laravel.
+        const response = await fetch(
+            `/class/posts/${encodeURIComponent(post.id)}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                    'X-CSRF-TOKEN':
+                        document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({
+                    classId
+                })
+            }
+        );
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                result.message || 'Could not delete the announcement.'
+            );
+        }
+
+        console.log('Announcement deleted:', post.id);
+
+        // Refresh the displayed announcements.
+        await loadPosts();
+
+    } catch (error) {
+        console.error('Post deletion failed:', error);
+
+        alert(
+            error.message ||
+            'Could not delete the announcement. Please try again.'
+        );
+    }
+}
 
 async function submitPost(event) {
     event.preventDefault();
@@ -351,6 +576,86 @@ async function submitPost(event) {
     const title = postTitleInput.value.trim();
     const description = postDescriptionInput.value.trim();
     const files = Array.from(postFileInput.files || []);
+
+    if (editingPostId) {
+        const submitButton = addPostForm.querySelector(
+            'button[type="submit"]'
+        );
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+
+        try {
+            const files = Array.from(postFileInput.files || []);
+
+            const oversizedFiles = files.filter(
+                file => file.size > 10 * 1024 * 1024
+            );
+
+            if (oversizedFiles.length) {
+                throw new Error('Each attachment must be 10 MB or smaller.');
+            }
+
+            if (!title) {
+                throw new Error('Post title is required.');
+            }
+
+            // Upload newly selected files only when saving.
+            const newAttachments = files.length
+                ? await uploadAttachments(files)
+                : [];
+
+            // Combine retained and newly uploaded attachments.
+            const attachments = [
+                ...retainedAttachments,
+                ...newAttachments
+            ];
+
+            const idToken = await currentUser.getIdToken();
+
+            const response = await fetch(
+                `/class/posts/${encodeURIComponent(editingPostId)}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        Authorization: `Bearer ${idToken}`,
+                        'X-CSRF-TOKEN':
+                            document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({
+                        classId,
+                        title,
+                        description,
+                        attachments
+                    })
+                }
+            );
+
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Could not update the post.');
+            }
+
+            await loadPosts();
+            closePostModal();
+
+        } catch (error) {
+            console.error('Post update failed:', error);
+            alert(error.message || 'Could not update the post.');
+
+        } finally {
+            submitButton.disabled = false;
+
+            if (editingPostId) {
+                submitButton.textContent = 'Save Changes';
+            }
+        }
+
+        return;
+    }
 
     if (!title) {
         postTitleInput.focus();
@@ -462,7 +767,7 @@ document.addEventListener('input', event => {
     }
 });
 
-addPostButton?.addEventListener('click', openPostModal);
+addPostButton?.addEventListener('click', () => openPostModal());
 viewAllStudentsButton?.addEventListener('click', () => {
     const isExpanded = document.querySelector('.sq-students-panel').classList.toggle('is-expanded');
     viewAllStudentsButton.setAttribute('aria-expanded', String(isExpanded));
