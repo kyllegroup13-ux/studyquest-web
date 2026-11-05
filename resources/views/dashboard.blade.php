@@ -200,10 +200,10 @@
                         <label for="year-level">
                             Year Level <span>*</span>
                         </label>
-                        <select id="year-level" name="year_level" required>
+                        <select id="year-level" name="year_level" placeholder="Select Year Level" required>
                             <option value="1st Year">1st Year</option>
                             <option value="2nd Year">2nd Year</option>
-                            <option value="3rd Year" selected>3rd Year</option>
+                            <option value="3rd Year">3rd Year</option>
                             <option value="4th Year">4th Year</option>
                         </select>
                     </div>
@@ -356,6 +356,31 @@
                     <button type="submit" class="create-class-button" id="save-profile-button">Save changes</button>
                 </div>
             </form>
+        </section>
+    </div>
+
+    <div class="modal-backdrop dashboard-alert-backdrop" id="dashboard-alert-modal" hidden>
+        <section
+            class="class-modal dashboard-alert-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-alert-title"
+            aria-describedby="dashboard-alert-message"
+        >
+            <div class="dashboard-alert-heading">
+                <span class="dashboard-alert-icon" aria-hidden="true">
+                    <i class="fa-solid fa-circle-info"></i>
+                </span>
+                <div>
+                    <h2 id="dashboard-alert-title">Notice</h2>
+                    <p id="dashboard-alert-message"></p>
+                </div>
+            </div>
+            <div class="dashboard-alert-actions">
+                <button type="button" class="secondary-button" id="dashboard-alert-cancel" hidden>Cancel</button>
+                <button type="button" class="dashboard-alert-confirm" id="dashboard-alert-confirm" hidden>Confirm</button>
+                <button type="button" class="create-class-button" id="dashboard-alert-close">OK</button>
+            </div>
         </section>
     </div>
 </body>

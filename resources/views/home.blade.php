@@ -12,7 +12,7 @@
             <section class="intro-section">
                 <div class="brand">
                     <img src="{{ asset('images/logo.png') }}" alt="StudyQuest Logo" class="brand-logo">
-                    <span class="brand-name">Study<span>Quest</span></span>
+                    <span class="brand-name">StudyQuest</span>
                 </div>
 
                 <div class="intro-copy">
@@ -98,7 +98,7 @@
                                 <input type="checkbox" name="remember">
                                 <span>Remember Me</span>
                             </label>
-                            <a href="#">Forgot Password?</a>
+                            <a href="#" id="forgot-password-link">Forgot Password?</a>
                         </div>
 
                         <button class="primary-button" type="submit">

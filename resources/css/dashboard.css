@@ -5,7 +5,7 @@
     margin: 0;
     background: radial-gradient(ellipse at 50% 0, #eff7ff 0, #f3f7fc 62%);
     color: #111827;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Nunito', sans-serif;
 }
 
 .dashboard-page button,
@@ -47,13 +47,9 @@
 }
 
 .dashboard-brand span {
-    color: #14233b;
+    color: #2478f2;
     font-size: 23px;
     font-weight: 800;
-}
-
-.dashboard-brand span::first-letter {
-    color: #2e8af7;
 }
 
 .profile-area {
@@ -637,9 +633,9 @@
 .class-card-top h2 {
     margin: 1px 0 7px;
     color: #172033;
-    font-size: 17px;
+    font-size: 21px;
     font-weight: 800;
-    line-height: 1.3;
+    line-height: 1.25;
     overflow-wrap: anywhere;
 }
 
@@ -944,6 +940,7 @@
 }
 
 .modal-heading h2 {
+    font-weight: bold;
     margin: 0 0 4px;
     color: #172033;
     font-size: 21px;
@@ -1131,6 +1128,108 @@
 
 .profile-modal-backdrop {
     z-index: 60;
+}
+
+.dashboard-alert-backdrop {
+    z-index: 80;
+    background: rgba(13, 20, 31, 0.56);
+    backdrop-filter: blur(4px);
+}
+
+.dashboard-alert-backdrop[hidden] {
+    display: none;
+}
+
+.dashboard-alert-modal {
+    width: min(100%, 440px);
+    padding: 26px;
+    border-radius: 18px;
+    animation: dashboard-alert-enter 160ms ease-out;
+}
+
+.dashboard-alert-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.dashboard-alert-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+    background: #eaf3ff;
+    color: #2478f2;
+    font-size: 19px;
+}
+
+.dashboard-alert-heading h2 {
+    margin: 1px 0 6px;
+    color: #172033;
+    font-size: 19px;
+    font-weight: 800;
+}
+
+.dashboard-alert-heading p {
+    margin: 0;
+    color: #5f6b7a;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.dashboard-alert-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.dashboard-alert-actions .create-class-button {
+    min-width: 90px;
+}
+
+.dashboard-alert-actions .secondary-button,
+.dashboard-alert-confirm {
+    min-width: 90px;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dashboard-alert-confirm {
+    border: 0;
+    background: #c62828;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(198, 40, 40, 0.18);
+}
+
+.dashboard-alert-confirm:hover {
+    background: #a91f1f;
+}
+
+.dashboard-alert-modal button:focus-visible {
+    outline: 3px solid rgba(57, 135, 242, 0.35);
+    outline-offset: 2px;
+}
+
+@keyframes dashboard-alert-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .profile-modal {
@@ -1494,6 +1593,10 @@ button:focus-visible {
     }
 
     .profile-modal {
+        padding: 22px 18px;
+    }
+
+    .dashboard-alert-modal {
         padding: 22px 18px;
     }
 

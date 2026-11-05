@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
 @import 'tailwindcss';
 @import '@fortawesome/fontawesome-free/css/all.min.css';
 
@@ -18,7 +19,7 @@ body {
 
 body {
     min-width: 320px;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Nunito', sans-serif;
     color: #111111;
 }
 
@@ -103,14 +104,10 @@ button {
 }
 
 .brand-name {
-    color: #1a2b47;
+    color: #2478f2;
     font-size: 27px;
     font-weight: 800;
     letter-spacing: -0.7px;
-}
-
-.brand-name span {
-    color: #2478f2;
 }
 
 .intro-copy h1 {

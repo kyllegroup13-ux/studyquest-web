@@ -22,12 +22,55 @@
                     <img src="{{ asset('images/logo.png') }}" alt="StudyQuest logo" class="sq-brand-mark">
                     <span>StudyQuest</span>
                 </a>
+            </div>
+            <div class="sq-topbar-actions">
                 <a class="sq-back-link" href="/dashboard" aria-label="Back to dashboard">
                     <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
                     <span>Dashboard</span>
                 </a>
+                <div class="sq-profile-area">
+                    <button
+                        class="sq-profile-button"
+                        id="profile-button"
+                        type="button"
+                        aria-label="Open account menu"
+                        aria-expanded="false"
+                        aria-controls="profile-menu"
+                    >
+                        <img class="sq-profile-image" id="profile-button-image" alt="" hidden>
+                        <span id="profile-initial">U</span>
+                    </button>
+
+                    <div class="sq-profile-menu" id="profile-menu" hidden>
+                        <div class="sq-profile-menu-info">
+                            <div class="sq-profile-menu-avatar" aria-hidden="true">
+                                <img class="sq-profile-image" id="profile-menu-image" alt="" hidden>
+                                <span id="profile-menu-initial">U</span>
+                            </div>
+                            <div class="sq-profile-menu-identity">
+                                <strong id="profile-name">User</strong>
+                                <span id="profile-email">Loading...</span>
+                            </div>
+                        </div>
+
+                        <div class="sq-profile-menu-actions">
+                            <button type="button" id="display-profile-button" class="sq-profile-menu-item">
+                                <span class="sq-profile-menu-item-icon" aria-hidden="true"><i class="fa-regular fa-user"></i></span>
+                                Display Profile
+                            </button>
+                            <button type="button" id="edit-profile-button" class="sq-profile-menu-item">
+                                <span class="sq-profile-menu-item-icon" aria-hidden="true"><i class="fa-solid fa-pen"></i></span>
+                                Edit Profile
+                            </button>
+                        </div>
+
+                        <button type="button" id="logout-button" class="sq-logout-button">
+                            <span class="sq-profile-menu-item-icon" aria-hidden="true"><i class="fa-solid fa-right-from-bracket"></i></span>
+                            Log out
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="sq-profile" id="profile-initial" aria-label="Profile" title="Your profile"></div>
         </div>
     </header>
 
@@ -162,10 +205,12 @@
                                 <span>PDF, DOCX, PPTX, IMG (Max 10MB each; select multiple files)</span>
                             </div>
                         </div>
-                        <img class="sq-image-preview" id="post-image-preview" alt="Preview of selected image" hidden>
-                        <span class="sq-upload-image-replace" id="post-upload-image-replace" hidden>Click to change image</span>
                     </label>
-                    <span class="sq-upload-file-label" id="post-file-name">No file selected</span>
+                </div>
+
+                <div class="sq-selected-files" id="selected-attachments-section" hidden>
+                    <label>Selected Files</label>
+                    <div id="selected-attachments-list"></div>
                 </div>
 
                 <div class="sq-post-actions">
@@ -178,6 +223,89 @@
         </div>
     </div>
 
+    <div class="sq-post-modal sq-remove-student-modal" id="remove-student-modal" aria-hidden="true">
+        <div class="sq-post-modal-card sq-remove-student-modal-card" role="dialog" aria-modal="true" aria-labelledby="remove-student-modal-title">
+            <div class="sq-post-modal-header">
+                <div class="sq-post-modal-brand">
+                    <div class="sq-post-modal-icon sq-remove-student-modal-icon" aria-hidden="true">
+                        <i class="fa-solid fa-user-minus"></i>
+                    </div>
+                    <div>
+                        <h2 id="remove-student-modal-title">Remove student?</h2>
+                        <p>This student will lose access to this class.</p>
+                    </div>
+                </div>
+                <button class="sq-post-modal-close" type="button" id="close-remove-student-modal" aria-label="Close remove student dialog">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="sq-remove-student-modal-body">
+                <p class="sq-remove-student-prompt">You’re about to remove</p>
+                <div class="sq-remove-student-identity">
+                    <span class="sq-remove-student-identity-icon" aria-hidden="true">
+                        <i class="fa-solid fa-user"></i>
+                    </span>
+                    <strong id="remove-student-name"></strong>
+                </div>
+                <div class="sq-remove-student-warning">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <p>They won’t be able to view class posts or materials unless they rejoin.</p>
+                </div>
+                <p id="remove-student-error" class="sq-remove-student-error" role="alert" hidden>
+                    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                    Could not remove this student. Please try again.
+                </p>
+            </div>
+
+            <div class="sq-post-actions">
+                <button class="sq-cancel-button" type="button" id="cancel-remove-student">Cancel</button>
+                <button class="sq-remove-student-confirm" type="button" id="confirm-remove-student">Remove student</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sq-post-modal sq-remove-student-modal sq-delete-announcement-modal" id="delete-announcement-modal" aria-hidden="true">
+        <div class="sq-post-modal-card sq-remove-student-modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-announcement-modal-title">
+            <div class="sq-post-modal-header">
+                <div class="sq-post-modal-brand">
+                    <div class="sq-post-modal-icon sq-remove-student-modal-icon" aria-hidden="true">
+                        <i class="fa-solid fa-trash"></i>
+                    </div>
+                    <div>
+                        <h2 id="delete-announcement-modal-title">Delete announcement?</h2>
+                        <p>This action can’t be undone.</p>
+                    </div>
+                </div>
+                <button class="sq-post-modal-close" type="button" id="close-delete-announcement-modal" aria-label="Close delete announcement dialog">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="sq-remove-student-modal-body">
+                <p class="sq-remove-student-prompt">You’re about to delete</p>
+                <div class="sq-remove-student-identity">
+                    <span class="sq-remove-student-identity-icon" aria-hidden="true">
+                        <i class="fa-solid fa-file-lines"></i>
+                    </span>
+                    <strong id="delete-announcement-title"></strong>
+                </div>
+                <div class="sq-remove-student-warning">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <p>This announcement and its attachments will be removed from the class.</p>
+                </div>
+                <p id="delete-announcement-error" class="sq-remove-student-error" role="alert" hidden>
+                    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                    <span>Could not delete this announcement. Please try again.</span>
+                </p>
+            </div>
+
+            <div class="sq-post-actions">
+                <button class="sq-cancel-button" type="button" id="cancel-delete-announcement">Cancel</button>
+                <button class="sq-remove-student-confirm" type="button" id="confirm-delete-announcement">Delete announcement</button>
+            </div>
+        </div>
+    </div>
 
 </body>
 

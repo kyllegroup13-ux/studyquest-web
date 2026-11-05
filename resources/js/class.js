@@ -1,10 +1,9 @@
 import { auth, db } from './firebase';
-import {
-    onAuthStateChanged
-} from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import {
     addDoc,
     collection,
+    deleteDoc,
     doc,
     getDoc,
     getDocs,
@@ -19,6 +18,13 @@ const classCode = document.querySelector('#class-code');
 const yearLevel = document.querySelector('#year-level');
 const courseInitials = document.querySelector('#course-initials');
 const profileInitial = document.querySelector('#profile-initial');
+const profileButton = document.querySelector('#profile-button');
+const profileMenu = document.querySelector('#profile-menu');
+const profileMenuInitial = document.querySelector('#profile-menu-initial');
+const profileButtonImage = document.querySelector('#profile-button-image');
+const profileMenuImage = document.querySelector('#profile-menu-image');
+const profileName = document.querySelector('#profile-name');
+const profileEmail = document.querySelector('#profile-email');
 const studentsList = document.querySelector('#students-list');
 const studentsLoading = document.querySelector('#students-loading');
 const studentsEmpty = document.querySelector('#students-empty');
@@ -38,21 +44,35 @@ const addPostForm = document.querySelector('#add-post-form');
 const postTitleInput = document.querySelector('#post-title');
 const postDescriptionInput = document.querySelector('#post-description');
 const postFileInput = document.querySelector('#post-file');
-const postFileName = document.querySelector('#post-file-name');
-const postUploadBox = document.querySelector('.sq-upload-box');
-const postUploadContent = document.querySelector('#post-upload-content');
-const postImagePreview = document.querySelector('#post-image-preview');
-const postUploadImageReplace = document.querySelector('#post-upload-image-replace');
+const selectedAttachmentsSection = document.querySelector('#selected-attachments-section');
+const selectedAttachmentsList = document.querySelector('#selected-attachments-list');
+const removeStudentModal = document.querySelector('#remove-student-modal');
+const removeStudentName = document.querySelector('#remove-student-name');
+const removeStudentError = document.querySelector('#remove-student-error');
+const confirmRemoveStudentButton = document.querySelector('#confirm-remove-student');
+const cancelRemoveStudentButton = document.querySelector('#cancel-remove-student');
+const closeRemoveStudentModalButton = document.querySelector('#close-remove-student-modal');
+const deleteAnnouncementModal = document.querySelector('#delete-announcement-modal');
+const deleteAnnouncementTitle = document.querySelector('#delete-announcement-title');
+const deleteAnnouncementError = document.querySelector('#delete-announcement-error');
+const deleteAnnouncementErrorMessage = deleteAnnouncementError.querySelector('span');
+const confirmDeleteAnnouncementButton = document.querySelector('#confirm-delete-announcement');
+const cancelDeleteAnnouncementButton = document.querySelector('#cancel-delete-announcement');
+const closeDeleteAnnouncementModalButton = document.querySelector('#close-delete-announcement-modal');
 
 let currentUser = null;
 let currentUserName = 'User';
 let currentProfileImageUrl = '';
 let currentClass = null;
 let isTeacher = false;
-let imagePreviewUrl = null;
 let editingPostId = null;
 let retainedAttachments = [];
 let editingOriginalAttachments = [];
+let selectedFiles = [];
+let studentToRemove = null;
+let removeStudentTrigger = null;
+let announcementToDelete = null;
+let deleteAnnouncementTrigger = null;
 
 function firstInitial(name) {
     return (String(name || '').trim().charAt(0) || 'U').toUpperCase();
@@ -71,6 +91,148 @@ function updateCounter(inputId, countId, maxLength) {
     const input = document.getElementById(inputId);
     const counter = document.getElementById(countId);
     if (input && counter) counter.textContent = `${input.value.length} / ${maxLength}`;
+}
+
+function openDeleteAnnouncementModal(post, trigger) {
+    announcementToDelete = post;
+    deleteAnnouncementTrigger = trigger;
+    deleteAnnouncementTitle.textContent = post.title || 'Untitled announcement';
+    deleteAnnouncementError.hidden = true;
+    deleteAnnouncementModal.classList.add('is-open');
+    deleteAnnouncementModal.setAttribute('aria-hidden', 'false');
+    confirmDeleteAnnouncementButton.focus();
+}
+
+function closeDeleteAnnouncementModal() {
+    if (confirmDeleteAnnouncementButton.disabled) {
+        return;
+    }
+
+    deleteAnnouncementModal.classList.remove('is-open');
+    deleteAnnouncementModal.setAttribute('aria-hidden', 'true');
+    deleteAnnouncementError.hidden = true;
+    announcementToDelete = null;
+    deleteAnnouncementTrigger?.focus();
+    deleteAnnouncementTrigger = null;
+}
+
+async function confirmAnnouncementDeletion() {
+    if (!currentUser || !isTeacher || !announcementToDelete) {
+        return;
+    }
+
+    confirmDeleteAnnouncementButton.disabled = true;
+    cancelDeleteAnnouncementButton.disabled = true;
+    closeDeleteAnnouncementModalButton.disabled = true;
+    confirmDeleteAnnouncementButton.textContent = 'Deleting...';
+    deleteAnnouncementError.hidden = true;
+
+    const deleted = await deletePost(announcementToDelete);
+
+    confirmDeleteAnnouncementButton.disabled = false;
+    cancelDeleteAnnouncementButton.disabled = false;
+    closeDeleteAnnouncementModalButton.disabled = false;
+    confirmDeleteAnnouncementButton.textContent = 'Delete announcement';
+
+    if (deleted) {
+        closeDeleteAnnouncementModal();
+    }
+}
+
+function openRemoveStudentModal(studentId, fullName, trigger) {
+    studentToRemove = studentId;
+    removeStudentTrigger = trigger;
+    removeStudentName.textContent = fullName;
+    removeStudentError.hidden = true;
+    removeStudentModal.classList.add('is-open');
+    removeStudentModal.setAttribute('aria-hidden', 'false');
+    confirmRemoveStudentButton.focus();
+}
+
+function closeRemoveStudentModal() {
+    if (confirmRemoveStudentButton.disabled) {
+        return;
+    }
+
+    removeStudentModal.classList.remove('is-open');
+    removeStudentModal.setAttribute('aria-hidden', 'true');
+    removeStudentError.hidden = true;
+    studentToRemove = null;
+    removeStudentTrigger?.focus();
+    removeStudentTrigger = null;
+}
+
+
+async function confirmStudentRemoval() {
+    if (!currentUser || !isTeacher || !studentToRemove) {
+        return;
+    }
+
+    confirmRemoveStudentButton.disabled = true;
+    cancelRemoveStudentButton.disabled = true;
+    closeRemoveStudentModalButton.disabled = true;
+    confirmRemoveStudentButton.textContent = 'Removing...';
+    removeStudentError.hidden = true;
+
+    let removed = false;
+
+    try {
+        const idToken = await currentUser.getIdToken();
+
+        const response = await fetch(
+            `/class/students/${encodeURIComponent(studentToRemove)}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                    'X-CSRF-TOKEN':
+                        document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({
+                    classId
+                })
+            }
+        );
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                result.message || 'Could not remove this student.'
+            );
+        }
+
+        removed = true;
+
+    } catch (error) {
+        console.error('Could not remove student from class:', error);
+
+        removeStudentError.textContent =
+            error.message || 'Could not remove this student. Please try again.';
+
+        removeStudentError.hidden = false;
+
+    } finally {
+        confirmRemoveStudentButton.disabled = false;
+        cancelRemoveStudentButton.disabled = false;
+        closeRemoveStudentModalButton.disabled = false;
+        confirmRemoveStudentButton.textContent = 'Remove student';
+    }
+
+    if (removed) {
+        closeRemoveStudentModal();
+
+        try {
+            await loadStudents();
+        } catch (error) {
+            console.error('Could not refresh students:', error);
+            studentsLoading.textContent =
+                'Student removed, but the list could not be refreshed.';
+            studentsLoading.hidden = false;
+        }
+    }
 }
 
 function getPostAttachments(post) {
@@ -93,6 +255,72 @@ function getPostAttachments(post) {
     return [];
 }
 
+function getAttachmentIconClass(fileName) {
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+    const iconClass = extension === 'pdf'
+        ? 'fa-file-pdf'
+        : ['doc', 'docx'].includes(extension)
+            ? 'fa-file-word'
+            : ['ppt', 'pptx'].includes(extension)
+                ? 'fa-file-powerpoint'
+                : ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)
+                    ? 'fa-file-image'
+                    : 'fa-file';
+
+    return { extension, iconClass };
+}
+
+function formatFileSize(size) {
+    if (size < 1024) {
+        return `${size} B`;
+    }
+
+    if (size < 1024 * 1024) {
+        return `${Math.round(size / 1024)} KB`;
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function createAttachmentCard(fileName, details, onRemove) {
+    const card = document.createElement('div');
+    card.className = 'sq-file-card';
+
+    const { extension, iconClass } = getAttachmentIconClass(fileName);
+    const icon = document.createElement('span');
+    icon.className = `sq-attachment-icon sq-attachment-icon-${extension || 'generic'}`;
+    icon.setAttribute('aria-hidden', 'true');
+
+    const fileIcon = document.createElement('i');
+    fileIcon.className = `fa-solid ${iconClass}`;
+    icon.append(fileIcon);
+
+    const info = document.createElement('div');
+    info.className = 'sq-file-card-info';
+
+    const name = document.createElement('span');
+    name.className = 'sq-file-card-name';
+    name.textContent = fileName;
+
+    const description = document.createElement('span');
+    description.className = 'sq-file-card-details';
+    description.textContent = details;
+    info.append(name, description);
+    card.append(icon, info);
+
+    if (onRemove) {
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'sq-file-card-remove';
+        removeButton.setAttribute('aria-label', `Remove ${fileName}`);
+        removeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+        removeButton.addEventListener('click', onRemove);
+        card.append(removeButton);
+    }
+
+    return card;
+}
+
 function renderExistingAttachments() {
     const section = document.querySelector('#existing-attachments-section');
     const list = document.querySelector('#existing-attachments-list');
@@ -106,29 +334,19 @@ function renderExistingAttachments() {
 
     if (retainedAttachments.length === 0) {
         const empty = document.createElement('p');
+        empty.className = 'sq-attachments-empty';
         empty.textContent = 'No existing attachments.';
         list.append(empty);
         return;
     }
 
     retainedAttachments.forEach((file, index) => {
-        const row = document.createElement('div');
-        row.className = 'sq-existing-attachment';
-
-        const name = document.createElement('span');
-        name.textContent = file.fileName;
-
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.textContent = 'Remove';
-
-        removeButton.addEventListener('click', () => {
+        const card = createAttachmentCard(file.fileName, 'Attached to this post', () => {
             retainedAttachments.splice(index, 1);
             renderExistingAttachments();
         });
 
-        row.append(name, removeButton);
-        list.append(row);
+        list.append(card);
     });
 }
 
@@ -181,6 +399,7 @@ function closePostModal() {
 
     retainedAttachments = [];
     editingOriginalAttachments = [];
+    selectedFiles = [];
 
     renderExistingAttachments();
 
@@ -197,54 +416,81 @@ function closePostModal() {
         uploadWrapper.hidden = false;
     }
 
-    // Reset file information.
-    if (postFileName) {
-        postFileName.textContent = 'No file selected';
-    }
-
-    clearPostImagePreview();
+    renderSelectedAttachments();
 
     // Reset character counters.
     updateCounter('post-title', 'post-title-count', 100);
     updateCounter('post-description', 'post-description-count', 200);
 }
 
-function clearPostImagePreview() {
-    if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-        imagePreviewUrl = null;
-    }
+function renderSelectedAttachments() {
+    if (!selectedAttachmentsSection || !selectedAttachmentsList) return;
 
-    postImagePreview?.removeAttribute('src');
-    if (postImagePreview) postImagePreview.hidden = true;
-    if (postUploadImageReplace) postUploadImageReplace.hidden = true;
-    postUploadContent?.removeAttribute('hidden');
-    postUploadBox?.classList.remove('has-image');
+    selectedAttachmentsList.replaceChildren();
+    selectedAttachmentsSection.hidden = selectedFiles.length === 0;
+
+    selectedFiles.forEach((file, index) => {
+        const details = `${file.name.split('.').pop()?.toUpperCase() || 'FILE'} - ${formatFileSize(file.size)}`;
+        const card = createAttachmentCard(file.name, details, () => {
+            selectedFiles.splice(index, 1);
+            syncSelectedFiles();
+            renderSelectedAttachments();
+        });
+
+        selectedAttachmentsList.append(card);
+    });
 }
 
-function updatePostFilePreview() {
-    const files = Array.from(postFileInput.files || []);
-    postFileName.textContent = files.length
-        ? `Selected files (${files.length}): ${files.map(file => file.name).join(', ')}`
-        : 'No file selected';
-    clearPostImagePreview();
+function syncSelectedFiles() {
+    const dataTransfer = new DataTransfer();
+    selectedFiles.forEach(file => dataTransfer.items.add(file));
+    postFileInput.files = dataTransfer.files;
+}
 
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-    if (!imageFile) return;
+function addSelectedFiles(files) {
+    const existingFiles = new Set(
+        selectedFiles.map(file => `${file.name}:${file.size}:${file.lastModified}`)
+    );
 
-    imagePreviewUrl = URL.createObjectURL(imageFile);
-    postImagePreview.src = imagePreviewUrl;
-    postImagePreview.hidden = false;
-    postUploadContent.hidden = true;
-    postUploadImageReplace.textContent = files.length > 1
-        ? 'Click to change selected files'
-        : 'Click to change image';
-    postUploadImageReplace.hidden = false;
-    postUploadBox.classList.add('has-image');
+    files.forEach(file => {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
+        if (!existingFiles.has(key)) {
+            selectedFiles.push(file);
+            existingFiles.add(key);
+        }
+    });
+
+    syncSelectedFiles();
+    renderSelectedAttachments();
 }
 
 function setInitial(element, name) {
     if (element) element.textContent = firstInitial(name);
+}
+
+function setProfileImage(url) {
+    [profileButtonImage, profileMenuImage].forEach(image => {
+        if (!image) return;
+
+        if (url) {
+            image.src = url;
+        } else {
+            image.removeAttribute('src');
+        }
+
+        image.hidden = !url;
+        image.onerror = () => {
+            image.hidden = true;
+            if (image === profileButtonImage) {
+                profileInitial.hidden = false;
+            } else if (profileMenuInitial) {
+                profileMenuInitial.hidden = false;
+            }
+        };
+    });
+
+    if (profileInitial) profileInitial.hidden = Boolean(url);
+    if (profileMenuInitial) profileMenuInitial.hidden = Boolean(url);
 }
 
 function renderPost(post) {
@@ -328,7 +574,7 @@ function renderPost(post) {
         deleteButton.addEventListener('click', async () => {
             menu.hidden = true;
             menuButton.setAttribute('aria-expanded', 'false');
-            await deletePost(post);
+            openDeleteAnnouncementModal(post, deleteButton);
         });
 
         menu.append(editButton, deleteButton);
@@ -464,6 +710,7 @@ async function loadStudents() {
         }
 
         const details = document.createElement('div');
+        details.className = 'sq-student-details';
         const name = document.createElement('p');
         name.className = 'sq-student-name';
         name.textContent = fullName;
@@ -471,7 +718,17 @@ async function loadStudents() {
         email.className = 'sq-student-date';
         email.textContent = student.email || '';
         details.append(name, email);
-        row.append(avatar, details);
+
+        const removeButton = document.createElement('button');
+        removeButton.className = 'sq-remove-student';
+        removeButton.type = 'button';
+        removeButton.textContent = 'Remove';
+        removeButton.setAttribute('aria-label', `Remove ${fullName} from class`);
+        removeButton.addEventListener('click', () => {
+            openRemoveStudentModal(studentDoc.id, fullName, removeButton);
+        });
+
+        row.append(avatar, details, removeButton);
         studentsList.append(row);
     });
 }
@@ -510,15 +767,10 @@ async function uploadAttachments(files) {
 
 async function deletePost(post) {
     if (!currentUser || !isTeacher) {
-        alert('Only the class teacher can delete posts.');
-        return;
+        return false;
     }
 
-    const confirmed = window.confirm(
-        `Are you sure you want to delete "${post.title || 'Untitled post'}"?\n\nThis action cannot be undone.`
-    );
-
-    if (!confirmed) return;
+    let postDeleted = false;
 
     try {
         // Get the teacher's Firebase ID token.
@@ -550,18 +802,26 @@ async function deletePost(post) {
             );
         }
 
+        postDeleted = true;
         console.log('Announcement deleted:', post.id);
 
         // Refresh the displayed announcements.
         await loadPosts();
+        return true;
 
     } catch (error) {
-        console.error('Post deletion failed:', error);
+        if (postDeleted) {
+            console.error('Could not refresh posts after deletion:', error);
+            postsList.innerHTML =
+                '<div class="sq-post-empty">Announcement deleted, but the post list could not be refreshed. Reload the page to see the latest posts.</div>';
+            return true;
+        }
 
-        alert(
-            error.message ||
-            'Could not delete the announcement. Please try again.'
-        );
+        console.error('Post deletion failed:', error);
+        deleteAnnouncementErrorMessage.textContent =
+            error.message || 'Could not delete this announcement. Please try again.';
+        deleteAnnouncementError.hidden = false;
+        return false;
     }
 }
 
@@ -774,15 +1034,82 @@ viewAllStudentsButton?.addEventListener('click', () => {
     viewStudentsLabel.textContent = isExpanded ? 'Show fewer students' : 'View all students';
     viewStudentsIcon.className = isExpanded ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-right';
 });
+confirmRemoveStudentButton?.addEventListener('click', confirmStudentRemoval);
+confirmDeleteAnnouncementButton?.addEventListener('click', confirmAnnouncementDeletion);
+cancelRemoveStudentButton?.addEventListener('click', closeRemoveStudentModal);
+closeRemoveStudentModalButton?.addEventListener('click', closeRemoveStudentModal);
+cancelDeleteAnnouncementButton?.addEventListener('click', closeDeleteAnnouncementModal);
+closeDeleteAnnouncementModalButton?.addEventListener('click', closeDeleteAnnouncementModal);
+removeStudentModal?.addEventListener('click', event => {
+    if (event.target === removeStudentModal) {
+        closeRemoveStudentModal();
+    }
+});
+deleteAnnouncementModal?.addEventListener('click', event => {
+    if (event.target === deleteAnnouncementModal) {
+        closeDeleteAnnouncementModal();
+    }
+});
 closePostModalButton?.addEventListener('click', closePostModal);
 cancelPostModalButton?.addEventListener('click', closePostModal);
 modal?.addEventListener('click', event => {
     if (event.target === modal) closePostModal();
 });
 postFileInput?.addEventListener('change', () => {
-    updatePostFilePreview();
+    addSelectedFiles(Array.from(postFileInput.files || []));
 });
 addPostForm?.addEventListener('submit', submitPost);
+
+profileButton?.addEventListener('click', () => {
+    const isOpening = profileMenu.hidden;
+    profileMenu.hidden = !isOpening;
+    profileButton.setAttribute('aria-expanded', String(isOpening));
+});
+
+document.querySelector('#display-profile-button')?.addEventListener('click', () => {
+    window.location.assign('/dashboard?profile=display');
+});
+
+document.querySelector('#edit-profile-button')?.addEventListener('click', () => {
+    window.location.assign('/dashboard?profile=edit');
+});
+
+document.querySelector('#logout-button')?.addEventListener('click', async () => {
+    try {
+        await signOut(auth);
+        window.location.replace('/');
+    } catch (error) {
+        console.error('Could not log out:', error);
+        alert('Could not log out. Please try again.');
+    }
+});
+
+document.addEventListener('click', event => {
+    if (
+        !profileMenu?.hidden &&
+        !profileMenu?.contains(event.target) &&
+        !profileButton?.contains(event.target)
+    ) {
+        profileMenu.hidden = true;
+        profileButton?.setAttribute('aria-expanded', 'false');
+    }
+});
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && deleteAnnouncementModal?.classList.contains('is-open')) {
+        closeDeleteAnnouncementModal();
+    }
+
+    if (event.key === 'Escape' && removeStudentModal && removeStudentModal.classList.contains('is-open')) {
+        closeRemoveStudentModal();
+    }
+
+    if (event.key === 'Escape' && profileMenu && !profileMenu.hidden) {
+        profileMenu.hidden = true;
+        profileButton?.setAttribute('aria-expanded', 'false');
+        profileButton?.focus();
+    }
+});
 
 onAuthStateChanged(auth, async user => {
     if (!user) {
@@ -808,6 +1135,16 @@ onAuthStateChanged(auth, async user => {
 
         currentClass = classSnapshot.data();
         isTeacher = currentClass.teacherId === user.uid;
+
+        const userData = userSnapshot.exists() ? userSnapshot.data() : {};
+        currentUserName = userData.name || user.displayName || user.email?.split('@')[0] || 'User';
+        currentProfileImageUrl = userData.profileImageUrl || user.photoURL || '';
+        setInitial(profileInitial, currentUserName);
+        setInitial(profileMenuInitial, currentUserName);
+        profileName.textContent = currentUserName;
+        profileEmail.textContent = user.email || '';
+        setProfileImage(currentProfileImageUrl);
+
         const enrollmentSnapshot = isTeacher
             ? null
             : await getDoc(doc(db, 'classes', classId, 'students', user.uid));
@@ -819,11 +1156,6 @@ onAuthStateChanged(auth, async user => {
             addPostButton?.setAttribute('hidden', '');
             return;
         }
-
-        const userData = userSnapshot.exists() ? userSnapshot.data() : {};
-        currentUserName = userData.name || user.displayName || user.email?.split('@')[0] || 'User';
-        currentProfileImageUrl = userData.profileImageUrl || user.photoURL || '';
-        setInitial(profileInitial, currentUserName);
 
         className.textContent = currentClass.className || 'Unnamed Class';
         courseCode.textContent = currentClass.subjectCode || '—';

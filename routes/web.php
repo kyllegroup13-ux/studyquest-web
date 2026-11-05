@@ -4,6 +4,8 @@ use App\Http\Controllers\ClassAttachmentController;
 use App\Http\Controllers\ClassPostController;
 use App\Http\Controllers\ProfileImageController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ClassStudentController;
+use App\Http\Controllers\ClassController;
 
 Route::get('/', function () {
     return view('home');
@@ -38,3 +40,11 @@ Route::delete('/class/posts/{postId}', [ClassPostController::class, 'destroy'])
 Route::post('/profile/image', [ProfileImageController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('profile.image.store');
+
+Route::delete('/class/students/{studentId}', [ClassStudentController::class, 'destroy'])
+    ->middleware('throttle:20,1')
+    ->name('class.students.destroy');
+
+Route::delete('/class/{classId}', [ClassController::class, 'destroy'])
+    ->middleware('throttle:10,1')
+    ->name('class.destroy');
