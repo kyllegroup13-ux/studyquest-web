@@ -22,11 +22,19 @@ COPY --from=ghcr.io/mlocati/php-extension-installer:latest \
 RUN install-php-extensions bcmath gd intl mbstring opcache pcntl \
     pdo_mysql pdo_pgsql zip
 
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 WORKDIR /var/www/html
 COPY . .
+
+# Allow PHP-FPM to receive attachments up to 10 MB.
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+
 COPY --from=frontend /app/public/build /var/www/html/public/build
+
 
 COPY docker/nginx.conf /etc/nginx/sites-available/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/studyquest.conf
