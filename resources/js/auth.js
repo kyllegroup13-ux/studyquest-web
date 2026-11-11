@@ -4,6 +4,7 @@ import {
     browserLocalPersistence,
     browserSessionPersistence,
     createUserWithEmailAndPassword,
+    onAuthStateChanged,
     sendPasswordResetEmail,
     sendEmailVerification,
     setPersistence,
@@ -232,6 +233,12 @@ const loginForm =
     document.querySelector('#login-form');
 
 if (loginForm) {
+    onAuthStateChanged(auth, (user) => {
+        if (user?.emailVerified) {
+            window.location.replace('/dashboard');
+        }
+    });
+
     const forgotPasswordLink =
         loginForm.querySelector('#forgot-password-link');
 
