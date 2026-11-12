@@ -46,11 +46,13 @@ class StudentActivityQuestionController extends Controller
 
         try {
             // User-token reads enforce Firestore class membership rules.
-            foreach ([
-                $classPath => 'Class',
-                "{$classPath}/students/{$uid}" => 'Enrollment',
-                "{$classPath}/publishedActivities/{$activityId}" => 'Published activity',
-            ] as $path => $label) {
+            foreach (
+                [
+                    $classPath => 'Class',
+                    "{$classPath}/students/{$uid}" => 'Enrollment',
+                    "{$classPath}/publishedActivities/{$activityId}" => 'Published activity',
+                ] as $path => $label
+            ) {
                 $response = Http::withToken($idToken)->timeout(15)->get($url . $path);
                 if ($response->status() === 404) {
                     return response()->json(['message' => "{$label} not found."], 403);
@@ -58,8 +60,10 @@ class StudentActivityQuestionController extends Controller
                 if (! $response->successful()) {
                     return response()->json(['message' => "Could not verify {$label}."], 503);
                 }
-                if ($label === 'Published activity' &&
-                    $response->json('fields.status.stringValue') !== 'published') {
+                if (
+                    $label === 'Published activity' &&
+                    $response->json('fields.status.stringValue') !== 'published'
+                ) {
                     return response()->json(['message' => 'Activity is unavailable.'], 403);
                 }
             }
@@ -72,7 +76,8 @@ class StudentActivityQuestionController extends Controller
                 preg_match('/^[A-Za-z]:[\\\\\/]/', $credentialsPath)
                 ? $credentialsPath : base_path($credentialsPath);
             $credentials = new ServiceAccountCredentials(
-                ['https://www.googleapis.com/auth/datastore'], $resolvedPath
+                ['https://www.googleapis.com/auth/datastore'],
+                $resolvedPath
             );
             $accessToken = $credentials->fetchAuthToken()['access_token'] ?? null;
             if (! $accessToken) {
@@ -94,7 +99,8 @@ class StudentActivityQuestionController extends Controller
             if (($attempt['status'] ?? '') !== 'in_progress' ||
                 ($summary['activeAttemptId'] ?? '') !== $attemptId ||
                 ! is_int($used) || $used < 1 ||
-                ($attempt['attemptNumber'] ?? null) !== $used) {
+                ($attempt['attemptNumber'] ?? null) !== $used
+            ) {
                 return response()->json(['message' => 'Attempt is not active.'], 409);
             }
 
@@ -109,7 +115,8 @@ class StudentActivityQuestionController extends Controller
             $maxAttempts = $activity['maxAttempts'] ?? null;
             if (($activity['status'] ?? '') !== 'published' ||
                 ! is_int($maxAttempts) || $used > $maxAttempts ||
-                ! is_array($items) || ! array_is_list($items) || count($items) !== 10) {
+                ! is_array($items) || ! array_is_list($items) || count($items) !== 10
+            ) {
                 return response()->json(['message' => 'Activity is unavailable or invalid.'], 409);
             }
 
@@ -120,8 +127,10 @@ class StudentActivityQuestionController extends Controller
                 }
                 switch ($type) {
                     case 'mind_rush':
-                        if (! is_string($item['question'] ?? null) ||
-                            ! is_array($item['choices'] ?? null) || count($item['choices']) !== 4) {
+                        if (
+                            ! is_string($item['question'] ?? null) ||
+                            ! is_array($item['choices'] ?? null) || count($item['choices']) !== 4
+                        ) {
                             throw new \RuntimeException('Invalid Mind Rush question.');
                         }
                         $safe[] = ['question' => $item['question'], 'choices' => $item['choices']];
@@ -133,17 +142,36 @@ class StudentActivityQuestionController extends Controller
                         $safe[] = ['term' => $item['term']];
                         break;
                     case 'word_forge':
-                        if (! is_string($item['statement'] ?? null) ||
-                            ! is_array($item['choices'] ?? null)) {
+                        if (
+                            ! is_string($item['statement'] ?? null) ||
+                            ! is_array($item['choices'] ?? null)
+                        ) {
                             throw new \RuntimeException('Invalid Word Forge question.');
                         }
                         $safe[] = ['statement' => $item['statement'], 'choices' => $item['choices']];
                         break;
                     case 'letter_quest':
-                        if (! is_string($item['question'] ?? null)) {
+                        if (
+                            ! is_string($item['question'] ?? null) ||
+                            ! is_string($item['answer'] ?? null)
+                        ) {
                             throw new \RuntimeException('Invalid Letter Quest question.');
                         }
-                        $safe[] = ['question' => $item['question']];
+                        // The letter multiset is part of the game, but the
+                        // ordered answer must never be returned to students.
+                        $answer = mb_strtoupper(preg_replace('/\s+/u', '', $item['answer']));
+                        $letters = preg_split('//u', $answer, -1, PREG_SPLIT_NO_EMPTY);
+                        if (! is_array($letters) || count($letters) < 1 || count($letters) > 100) {
+                            throw new \RuntimeException('Invalid Letter Quest letter bank.');
+                        }
+                        // Deterministic Fisher-Yates shuffle scoped to this attempt
+                        // and question; repeated requests yield the same bank.
+                        for ($j = count($letters) - 1; $j > 0; $j--) {
+                            $digest = hash('sha256', $attemptId . ':letter:' . $i . ':' . $j);
+                            $swap = hexdec(substr($digest, 0, 8)) % ($j + 1);
+                            [$letters[$j], $letters[$swap]] = [$letters[$swap], $letters[$j]];
+                        }
+                        $safe[] = ['question' => $item['question'], 'letters' => $letters];
                         break;
                     default:
                         throw new \RuntimeException('Unsupported game type.');
@@ -162,16 +190,18 @@ class StudentActivityQuestionController extends Controller
                 $definitions = array_column($items, 'definition');
                 // Stable permutation for this attempt. Never expose source indices.
                 $indices = range(0, 9);
-                usort($indices, fn (int $a, int $b) => strcmp(
+                usort($indices, fn(int $a, int $b) => strcmp(
                     hash('sha256', $attemptId . ':definition:' . $a),
                     hash('sha256', $attemptId . ':definition:' . $b)
                 ));
-                $payload['definitions'] = array_map(fn (int $i) => $definitions[$i], $indices);
+                $payload['definitions'] = array_map(fn(int $i) => $definitions[$i], $indices);
             }
             return response()->json($payload);
         } catch (Throwable $e) {
             Log::error('Student activity question delivery failed', [
-                'classId' => $classId, 'activityId' => $activityId, 'error' => $e->getMessage(),
+                'classId' => $classId,
+                'activityId' => $activityId,
+                'error' => $e->getMessage(),
             ]);
             return response()->json(['message' => 'Could not load activity questions.'], 503);
         }
@@ -195,7 +225,8 @@ class StudentActivityQuestionController extends Controller
         if (array_key_exists('nullValue', $value)) return null;
         if (isset($value['mapValue'])) return $this->decodeFields($value['mapValue']['fields'] ?? []);
         if (isset($value['arrayValue'])) return array_map(
-            fn ($v) => $this->decodeValue($v), $value['arrayValue']['values'] ?? []
+            fn($v) => $this->decodeValue($v),
+            $value['arrayValue']['values'] ?? []
         );
         if (array_key_exists('timestampValue', $value)) return $value['timestampValue'];
         throw new \RuntimeException('Unsupported Firestore field value.');

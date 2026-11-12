@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClassStudentController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\GameActivityController;
+use App\Http\Controllers\StudentActivityAttemptController;
 
 Route::get('/', function () {
     return view('home');
@@ -74,3 +75,9 @@ Route::post('/class/activities/publish', [
     'publish',
 ])->middleware('throttle:10,1')
     ->name('class.activities.publish');
+
+Route::post('/class/activities/start', [
+    'App\\Http\\Controllers\\StudentActivityAttemptController',
+    'start',
+])->middleware('throttle:20,1')
+    ->name('api.class.activities.start');

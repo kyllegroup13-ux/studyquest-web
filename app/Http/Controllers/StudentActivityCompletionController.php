@@ -270,8 +270,11 @@ class StudentActivityCompletionController extends Controller
                     ) {
                         return null;
                     }
-                    $isCorrect = mb_strtolower(trim($answer)) ===
-                        mb_strtolower(trim($item['answer']));
+                    // Letter tiles omit spaces, matching reviewer-mode behavior.
+                    $normalize = fn(string $value): string => mb_strtolower(
+                        preg_replace('/\s+/u', '', trim($value))
+                    );
+                    $isCorrect = $normalize($answer) === $normalize($item['answer']);
                     break;
                 default:
                     return null;
