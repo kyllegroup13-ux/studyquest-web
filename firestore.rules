@@ -338,6 +338,49 @@ service cloud.firestore {
         allow delete: if isClassTeacher();
       }
 
+      match /activities/{activityId} {
+
+        function isClassTeacher() {
+          return request.auth != null
+            && get(
+              /databases/$(database)/documents/classes/$(classId)
+            ).data.teacherId == request.auth.uid;
+        }
+
+        // Only the class teacher can read activity documents.
+        allow get, list: if isClassTeacher();
+
+        // Activity creation, updates, and deletion
+        // must go through the authorized Laravel backend.
+        allow create, update, delete: if false;
+      }
+
+      match /publishedActivities/{activityId} {
+
+        function isClassTeacher() {
+          return request.auth != null
+            && get(
+              /databases/$(database)/documents/classes/$(classId)
+            ).data.teacherId == request.auth.uid;
+        }
+
+        function isEnrolledStudent() {
+          return request.auth != null
+            && exists(
+              /databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)
+            );
+        }
+
+        // Only enrolled students and the class teacher
+        // can view published activity metadata.
+        allow get, list: if isClassTeacher()
+          || isEnrolledStudent();
+
+        // Only the authorized Laravel backend can
+        // create or modify published activity metadata.
+        allow create, update, delete: if false;
+      }
+
     }
   }
 }

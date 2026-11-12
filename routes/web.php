@@ -6,6 +6,7 @@ use App\Http\Controllers\ProfileImageController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClassStudentController;
 use App\Http\Controllers\ClassController;
+use App\Http\Controllers\GameActivityController;
 
 Route::get('/', function () {
     return view('home');
@@ -48,3 +49,28 @@ Route::delete('/class/students/{studentId}', [ClassStudentController::class, 'de
 Route::delete('/class/{classId}', [ClassController::class, 'destroy'])
     ->middleware('throttle:10,1')
     ->name('class.destroy');
+
+// Create a teacher-assigned game activity draft.
+Route::post(
+    '/class/activities',
+    [GameActivityController::class, 'store']
+)
+    ->middleware('throttle:10,1')
+    ->name('class.activities.store');
+
+Route::post('/class/activities/generate', [
+    GameActivityController::class,
+    'generate',
+])->middleware('throttle:5,1');
+
+Route::post('/class/activities/save-questions', [
+    GameActivityController::class,
+    'saveQuestions',
+])->middleware('throttle:10,1');
+
+// Publish a completed teacher-assigned game activity.
+Route::post('/class/activities/publish', [
+    GameActivityController::class,
+    'publish',
+])->middleware('throttle:10,1')
+    ->name('class.activities.publish');
