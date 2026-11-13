@@ -4,6 +4,8 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class GameActivityAiService
 {
@@ -33,8 +35,23 @@ class GameActivityAiService
             'link_up' =>
             'Generate matching pairs. Each item must have term and definition.',
 
-            'word_forge' =>
-            'Generate fill-in-the-blank questions. Each item must have statement containing [BLANK], answers (array of strings), and choices (array of strings).',
+            'word_forge' => implode("\n", [
+                'Generate educational fill-in-the-blank questions.',
+                'Each item must have exactly three properties:',
+                'statement, answers, and choices.',
+                'The statement must contain the literal [BLANK].',
+                'answers must contain 1 to 10 correct answer strings.',
+                'choices must contain 1 to 20 unique strings.',
+                'CRITICAL: Every correct answer MUST also appear',
+                'as an identical string inside choices.',
+                'Do not paraphrase, shorten, or modify answers',
+                'when placing them in choices.',
+                'Do not repeat choices, even with different capitalization.',
+                'Do not repeat question statements.',
+                'Keep each statement under 500 characters.',
+                'Keep answers and choices under 100 characters each.',
+                'Return exactly 10 questions.',
+            ]),
 
             'letter_quest' =>
             'Generate short-answer questions. Each item must have question and answer.',
@@ -113,7 +130,16 @@ PROMPT;
             );
         }
 
-        return app(GameActivityQuestionValidator::class)
-            ->validate($gameType, $data);
+        try {
+            return app(GameActivityQuestionValidator::class)
+                ->validate($gameType, $data);
+        } catch (ValidationException $e) {
+            Log::warning('AI activity question validation failed', [
+                'gameType' => $gameType,
+                'errors' => $e->errors(),
+            ]);
+
+            throw $e;
+        }
     }
 }
