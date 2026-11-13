@@ -58,12 +58,22 @@ class StudentActivityCompletionController extends Controller
                 if ($response->status() === 404) {
                     return response()->json(['message' => "{$label} not found."], 403);
                 }
+
                 if (! $response->successful()) {
-                    return response()->json(['message' => "Could not verify {$label}."], 503);
+                    return response()->json([
+                        'message' => "Could not verify {$label}.",
+                    ], 503);
                 }
-                {
-                    return response()->json(['message' => 'Activity is unavailable.'], 403);
+
+                if (
+                    $label === 'Published activity' &&
+                    $response->json('fields.status.stringValue') !== 'published'
+                ) {
+                    return response()->json([
+                        'message' => 'Activity is unavailable.',
+                    ], 403);
                 }
+
 
                 if ($label === 'Published activity') {
                     $deadlineAt = $response->json(
