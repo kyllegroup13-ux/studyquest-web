@@ -20,6 +20,12 @@ Route::post('/class/activities/start', [
 ])->middleware('throttle:20,1')
     ->name('api.class.activities.start');
 
+Route::post('/class/activities/abandon', [
+    StudentActivityAttemptController::class,
+    'abandon',
+])->middleware('throttle:20,1')
+    ->name('api.class.activities.abandon');
+
 // Step 3.2A.3C.2 — Complete and grade attempt
 Route::post('/class/activities/complete', [
     StudentActivityCompletionController::class,
@@ -31,4 +37,4 @@ Route::post('/class/activities/questions', [
     StudentActivityQuestionController::class,
     'questions',
 ])->middleware('throttle:20,1')
-    ->name('api.class.activities.questions'); 
+    ->name('api.class.activities.questions');
