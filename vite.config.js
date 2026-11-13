@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/css/class.css',
                 'resources/js/app.js',
                 'resources/js/class.js',
+                'resources/js/game-activities.js',
             ],
             refresh: true,
         }),
