@@ -1,4 +1,5 @@
 import { auth, db } from './firebase';
+import { showAlert } from './alert-modal';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import {
     addDoc,
@@ -829,7 +830,7 @@ async function submitPost(event) {
     event.preventDefault();
 
     if (!currentUser || !isTeacher) {
-        alert('Only the class teacher can publish posts.');
+        showAlert('Only the class teacher can publish posts.');
         return;
     }
 
@@ -904,7 +905,7 @@ async function submitPost(event) {
 
         } catch (error) {
             console.error('Post update failed:', error);
-            alert(error.message || 'Could not update the post.');
+            showAlert(error.message || 'Could not update the post.');
 
         } finally {
             submitButton.disabled = false;
@@ -924,7 +925,7 @@ async function submitPost(event) {
 
     const oversizedFiles = files.filter(file => file.size > 10 * 1024 * 1024);
     if (oversizedFiles.length) {
-        alert(`Each file must be 10 MB or smaller. Remove: ${oversizedFiles.map(file => file.name).join(', ')}`);
+        showAlert(`Each file must be 10 MB or smaller. Remove: ${oversizedFiles.map(file => file.name).join(', ')}`);
         return;
     }
 
@@ -1002,7 +1003,7 @@ async function submitPost(event) {
     } catch (error) {
         console.error('Could not publish class post:', error);
 
-        alert(
+        showAlert(
             error.message ||
             'Could not publish this post. Please try again.'
         );
@@ -1080,7 +1081,7 @@ document.querySelector('#logout-button')?.addEventListener('click', async () => 
         window.location.replace('/');
     } catch (error) {
         console.error('Could not log out:', error);
-        alert('Could not log out. Please try again.');
+        showAlert('Could not log out. Please try again.');
     }
 });
 

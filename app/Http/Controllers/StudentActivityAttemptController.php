@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kreait\Laravel\Firebase\Facades\Firebase;
+use App\Support\ActivityDeadline;
 use Throwable;
 
 class StudentActivityAttemptController extends Controller
@@ -74,6 +75,14 @@ class StudentActivityAttemptController extends Controller
             if (($fields['status']['stringValue'] ?? null) !== 'published') {
                 return response()->json(['message' => 'Activity is not available.'], 403);
             }
+
+            $deadlineAt =
+                $fields['deadlineAt']['timestampValue'] ?? null;
+
+            if (ActivityDeadline::hasPassed($deadlineAt)) {
+                return ActivityDeadline::rejection();
+            }
+
             $maxAttempts = (int) ($fields['maxAttempts']['integerValue'] ?? 0);
             if ($maxAttempts < 1 || $maxAttempts > 10) {
                 return response()->json(['message' => 'Invalid activity attempt limit.'], 503);
@@ -96,6 +105,10 @@ class StudentActivityAttemptController extends Controller
             }
 
             for ($retry = 0; $retry < 5; $retry++) {
+                if (ActivityDeadline::hasPassed($deadlineAt)) {
+                    return ActivityDeadline::rejection();
+                }
+
                 $summary = Http::withToken($accessToken)
                     ->timeout(15)->get($url . $summaryPath);
                 if (! $summary->successful() && $summary->status() !== 404) {
@@ -237,6 +250,10 @@ class StudentActivityAttemptController extends Controller
                         'currentDocument' => ['exists' => false],
                     ],
                 ];
+
+                if (ActivityDeadline::hasPassed($deadlineAt)) {
+                    return ActivityDeadline::rejection();
+                }
 
                 $commit = Http::withToken($accessToken)->timeout(30)
                     ->post($url . $base . ':commit', ['writes' => $writes]);

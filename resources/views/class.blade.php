@@ -391,14 +391,17 @@
             aria-labelledby="activity-modal-title">
             <div class="sq-post-modal-header">
                 <div class="sq-post-modal-brand">
-                    <div class="sq-post-modal-icon">
+                    <div class="sq-post-modal-icon sq-activity-modal-icon">
                         <i class="fa-solid fa-gamepad"></i>
                     </div>
                     <div>
+                        <span class="sq-activity-modal-eyebrow">
+                            ACTIVITY BUILDER
+                        </span>
                         <h2 id="activity-modal-title">
                             Create Game Activity
                         </h2>
-                        <p>Prepare an AI-generated activity.</p>
+                        <p>Set up the details for your next classroom game.</p>
                     </div>
                 </div>
 
@@ -411,8 +414,8 @@
                 </button>
             </div>
 
-            <form id="activity-form" class="sq-post-form">
-                <div class="sq-field">
+            <form id="activity-form" class="sq-post-form sq-activity-form">
+                <div class="sq-field sq-activity-field-full">
                     <label for="activity-title">
                         Activity Title *
                     </label>
@@ -424,7 +427,7 @@
                         required>
                 </div>
 
-                <div class="sq-field">
+                <div class="sq-field sq-activity-field-full">
                     <label for="activity-description">
                         Description (Optional)
                     </label>
@@ -456,7 +459,9 @@
                     </select>
                 </div>
 
-                <div id="activity-topic-section" class="sq-field">
+                <div
+                    id="activity-topic-section"
+                    class="sq-field sq-activity-field-full">
                     <label for="activity-topic">Topic *</label>
                     <textarea
                         id="activity-topic"
@@ -467,7 +472,7 @@
 
                 <div
                     id="activity-file-section"
-                    class="sq-field"
+                    class="sq-field sq-activity-field-full"
                     hidden>
                     <label for="activity-file">
                         Learning Material *
@@ -498,6 +503,27 @@
                         <option value="10">10 Attempts</option>
                     </select>
                 </div>
+
+
+                <div class="sq-field">
+                    <label for="activity-deadline">
+                        Activity Deadline (Optional)
+                    </label>
+
+                    <input
+                        id="activity-deadline"
+                        name="deadlineAt"
+                        type="datetime-local"
+                        step="60"
+                        aria-describedby="activity-deadline-help">
+
+                    <small id="activity-deadline-help">
+                        Philippine Standard Time (PHT).
+                        Students must finish and submit before this deadline.
+                        Leave blank for no deadline.
+                    </small>
+                </div>
+
 
                 <p
                     id="activity-form-message"
@@ -654,6 +680,15 @@
                     <strong id="sq-publish-attempts"></strong>
                 </div>
 
+
+                <div>
+                    <span>Deadline</span>
+                    <strong id="sq-publish-deadline">
+                        No deadline
+                    </strong>
+                </div>
+
+
                 <div>
                     <span>Gameplay</span>
                     <strong>Assessment (No Lives)</strong>
@@ -689,6 +724,71 @@
             </div>
         </section>
     </div>
+
+
+    <!-- Activity Score Monitoring Modal -->
+    <div id="sq-scores-modal" class="sq-question-preview-modal"
+        hidden aria-hidden="true">
+        <div class="sq-question-preview-backdrop" data-scores-close></div>
+
+        <section class="sq-question-preview-dialog"
+            role="dialog" aria-modal="true"
+            aria-labelledby="sq-scores-title"
+            tabindex="-1">
+
+            <header class="sq-question-preview-header">
+                <div>
+                    <p class="sq-question-preview-eyebrow">
+                        STUDYQUEST · TEACHER MONITORING
+                    </p>
+                    <h2 id="sq-scores-title">Activity Scores</h2>
+                    <p id="sq-scores-subtitle"></p>
+                </div>
+                <button type="button" class="sq-question-preview-close"
+                    data-scores-close aria-label="Close score monitoring">
+                    &times;
+                </button>
+            </header>
+
+            <div class="sq-question-preview-content">
+                <div class="sq-scores-tabs" role="tablist"
+                    aria-label="Score monitoring sections">
+                    <button type="button" id="sq-scores-overview-tab"
+                        role="tab" aria-selected="true"
+                        aria-controls="sq-scores-overview">
+                        Overview
+                    </button>
+                    <button type="button" id="sq-scores-history-tab"
+                        role="tab" aria-selected="false"
+                        aria-controls="sq-scores-history">
+                        Attempt History
+                    </button>
+                </div>
+
+                <p id="sq-scores-message" role="status" aria-live="polite">
+                    Loading student scores...
+                </p>
+
+                <div id="sq-scores-overview" role="tabpanel"
+                    aria-labelledby="sq-scores-overview-tab">
+                    <div id="sq-scores-summary"></div>
+                    <div id="sq-scores-students"></div>
+                </div>
+
+                <div id="sq-scores-history" role="tabpanel"
+                    aria-labelledby="sq-scores-history-tab" hidden>
+                </div>
+            </div>
+
+            <footer class="sq-question-preview-footer">
+                <button type="button" id="sq-scores-refresh">
+                    Refresh Scores
+                </button>
+                <button type="button" data-scores-close>Close</button>
+            </footer>
+        </section>
+    </div>
+
 
 </body>
 

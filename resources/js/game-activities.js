@@ -1,5 +1,6 @@
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from './firebase';
+import { showAlert, showConfirmation } from './alert-modal';
 import {
     collection,
     onSnapshot,
@@ -428,14 +429,14 @@ async function saveActivityQuestions() {
         .match(/^\/class\/([A-Za-z0-9_-]+)\/?$/)?.[1];
 
     if (!classId) {
-        window.alert('Class ID is missing.');
+        showAlert('Class ID is missing.');
         return;
     }
 
     const user = auth.currentUser;
 
     if (!user) {
-        window.alert('Please sign in again.');
+        showAlert('Please sign in again.');
         return;
     }
 
@@ -494,7 +495,7 @@ async function saveActivityQuestions() {
         saveButton.textContent = 'Questions Saved';
         saveButton.disabled = true;
 
-        window.alert(
+        showAlert(
             'Successfully saved 10 questions to Firestore. ' +
             'The activity remains a draft.'
         );
@@ -504,7 +505,7 @@ async function saveActivityQuestions() {
         savingActivityQuestions = false;
         closeQuestionPreview();
     } catch (error) {
-        window.alert(
+        showAlert(
             error.message || 'Could not save questions.'
         );
 
@@ -727,7 +728,7 @@ function viewSavedActivityQuestions(activity) {
         !Array.isArray(questions.items) ||
         questions.items.length !== 10
     ) {
-        window.alert(
+        showAlert(
             'Saved questions are missing or incomplete.'
         );
         return;
@@ -739,7 +740,7 @@ function viewSavedActivityQuestions(activity) {
         'word_forge',
         'letter_quest',
     ].includes(activity.gameType)) {
-        window.alert('Unsupported game type.');
+        showAlert('Unsupported game type.');
         return;
     }
 
@@ -770,12 +771,15 @@ function openPublishModal(activity, triggerButton) {
     const modal = document.getElementById('sq-publish-modal');
     if (!modal) return;
 
+
     selectedPublishActivity = {
         id: activity.id,
         title: activity.title,
         gameType: activity.gameType,
         maxAttempts: activity.maxAttempts,
+        deadlineAt: activity.deadlineAt ?? null,
     };
+
 
     publishPreviousFocus = triggerButton;
 
@@ -791,6 +795,25 @@ function openPublishModal(activity, triggerButton) {
     document.getElementById(
         'sq-publish-attempts'
     ).textContent = String(activity.maxAttempts ?? 1);
+
+
+    const publishDeadline = document.getElementById(
+        'sq-publish-deadline'
+    );
+
+    if (publishDeadline) {
+        publishDeadline.textContent = activity.deadlineAt?.toDate
+            ? activity.deadlineAt.toDate().toLocaleString('en-PH', {
+                timeZone: 'Asia/Manila',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+            }) + ' PHT'
+            : 'No deadline';
+    }
 
     const error = document.getElementById('sq-publish-error');
     error.hidden = true;
@@ -901,7 +924,7 @@ async function confirmPublishActivity() {
         publishSubmitting = false;
         closePublishModal();
 
-        window.alert('Activity published successfully.');
+        showAlert('Activity published successfully.');
     } catch (error) {
         errorElement.textContent =
             error.message || 'Publishing failed.';
@@ -978,6 +1001,476 @@ function initializePublishModal() {
 }
 
 
+let selectedScoreActivity = null;
+let scorePreviousFocus = null;
+let scoreRequestVersion = 0;
+
+function scoreNode(tag, value, className = '') {
+    const node = document.createElement(tag);
+    node.textContent = String(value ?? '');
+    if (className) node.className = className;
+    return node;
+}
+
+function switchScoreTab(tab) {
+    const overview = tab === 'overview';
+
+    document.getElementById('sq-scores-overview').hidden = !overview;
+    document.getElementById('sq-scores-history').hidden = overview;
+
+    for (const [name, selected] of [
+        ['overview', overview],
+        ['history', !overview],
+    ]) {
+        const button = document.getElementById(`sq-scores-${name}-tab`);
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+    }
+}
+
+function renderActivityScores(data) {
+    const summary = document.getElementById('sq-scores-summary');
+    const students = document.getElementById('sq-scores-students');
+    const history = document.getElementById('sq-scores-history');
+
+    summary.replaceChildren();
+    students.replaceChildren();
+    history.replaceChildren();
+
+    const metrics = document.createElement('div');
+    metrics.className = 'sq-scores-metrics';
+
+    for (const [label, value] of [
+        ['Total Students', data.totalStudents],
+        ['Completed', data.completedStudents],
+        ['Average Best Score',
+            data.averageHighestScore === null
+                ? '—'
+                : `${data.averageHighestScore}/${data.maxScore}`],
+    ]) {
+        const metric = scoreNode('div', '', 'sq-scores-metric');
+        metric.append(
+            scoreNode('strong', value),
+            scoreNode('span', label)
+        );
+        metrics.appendChild(metric);
+    }
+
+    summary.appendChild(metrics);
+
+    const studentTable = document.createElement('table');
+    studentTable.className = 'sq-scores-table';
+    const studentHead = document.createElement('thead');
+    const studentHeadRow = document.createElement('tr');
+
+    for (const heading of ['Student', 'Best Score', 'Attempts', 'Status']) {
+        studentHeadRow.appendChild(scoreNode('th', heading));
+    }
+
+    studentHead.appendChild(studentHeadRow);
+    studentTable.appendChild(studentHead);
+
+    const studentBody = document.createElement('tbody');
+
+    for (const student of data.students) {
+        const row = document.createElement('tr');
+        const statusLabels = {
+            completed: 'Completed',
+            in_progress: 'In Progress',
+            not_started: 'Not Started',
+        };
+
+        for (const value of [
+            student.name,
+            student.highestScore === null
+                ? '—'
+                : `${student.highestScore}/${data.maxScore}`,
+            `${student.attemptsUsed}/${student.maxAttempts}`,
+            statusLabels[student.status] ?? student.status,
+        ]) {
+            row.appendChild(scoreNode('td', value));
+        }
+
+        studentBody.appendChild(row);
+    }
+
+    studentTable.appendChild(studentBody);
+
+    if (data.students.length === 0) {
+        students.appendChild(scoreNode('p', 'No enrolled students found.'));
+    } else {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'sq-scores-table-wrap';
+        wrapper.appendChild(studentTable);
+        students.appendChild(wrapper);
+    }
+
+    const historyTable = document.createElement('table');
+    historyTable.className = 'sq-scores-table';
+    const historyHead = document.createElement('thead');
+    const historyHeadRow = document.createElement('tr');
+
+    for (const heading of [
+        'Student', 'Attempt', 'Score', 'Status', 'Finished',
+    ]) {
+        historyHeadRow.appendChild(scoreNode('th', heading));
+    }
+
+    historyHead.appendChild(historyHeadRow);
+    historyTable.appendChild(historyHead);
+
+    const historyBody = document.createElement('tbody');
+    let historyCount = 0;
+
+    for (const student of data.students) {
+        for (const attempt of student.history) {
+            historyCount++;
+            const row = document.createElement('tr');
+
+            const finished = attempt.finishedAt
+                ? new Date(attempt.finishedAt).toLocaleString()
+                : '—';
+
+            for (const value of [
+                student.name,
+                `#${attempt.attemptNumber}`,
+                attempt.score === null
+                    ? '—'
+                    : `${attempt.score}/${data.maxScore}`,
+                attempt.status,
+                finished,
+            ]) {
+                row.appendChild(scoreNode('td', value));
+            }
+
+            historyBody.appendChild(row);
+        }
+    }
+
+    historyTable.appendChild(historyBody);
+
+    if (historyCount === 0) {
+        history.appendChild(scoreNode('p', 'No attempts recorded yet.'));
+    } else {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'sq-scores-table-wrap';
+        wrapper.appendChild(historyTable);
+        history.appendChild(wrapper);
+    }
+}
+
+async function loadActivityScores() {
+    if (!selectedScoreActivity) return;
+
+    const requestVersion = ++scoreRequestVersion;
+    const { activityId, classId } = selectedScoreActivity;
+    const message = document.getElementById('sq-scores-message');
+    const refresh = document.getElementById('sq-scores-refresh');
+
+    message.hidden = false;
+    message.textContent = 'Loading student scores...';
+    refresh.disabled = true;
+
+    try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('Please sign in again.');
+
+        const csrfToken = document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+        if (!csrfToken) throw new Error('CSRF token is missing.');
+
+        const idToken = await user.getIdToken();
+
+        const response = await fetch('/class/activities/scores', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ classId, activityId }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Could not load scores.');
+        }
+
+        if (requestVersion !== scoreRequestVersion) return;
+
+        renderActivityScores(data);
+        message.hidden = true;
+    } catch (error) {
+        if (requestVersion !== scoreRequestVersion) return;
+        message.textContent = error.message || 'Could not load scores.';
+    } finally {
+        if (requestVersion === scoreRequestVersion) {
+            refresh.disabled = false;
+        }
+    }
+}
+
+function openActivityScores(activity, classId, triggerButton) {
+    const modal = document.getElementById('sq-scores-modal');
+    if (!modal) return;
+
+    scorePreviousFocus = triggerButton;
+    selectedScoreActivity = {
+        activityId: activity.id,
+        classId,
+    };
+
+    document.getElementById('sq-scores-subtitle').textContent =
+        `${activity.title} · ${previewGameLabels[activity.gameType] ?? 'Game'}`;
+
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+
+    document.getElementById('sq-scores-summary').replaceChildren();
+    document.getElementById('sq-scores-students').replaceChildren();
+    document.getElementById('sq-scores-history').replaceChildren();
+
+    switchScoreTab('overview');
+    modal.querySelector('.sq-question-preview-dialog')?.focus();
+    loadActivityScores();
+}
+
+function closeActivityScores() {
+    const modal = document.getElementById('sq-scores-modal');
+    if (!modal || modal.hidden) return;
+
+    scoreRequestVersion++;
+    selectedScoreActivity = null;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+
+    if (scorePreviousFocus?.isConnected) {
+        scorePreviousFocus.focus();
+    }
+    scorePreviousFocus = null;
+}
+
+function initializeScoreMonitoring() {
+    const modal = document.getElementById('sq-scores-modal');
+    if (!modal || modal.dataset.initialized === 'true') return;
+
+    modal.dataset.initialized = 'true';
+
+    modal.querySelectorAll('[data-scores-close]').forEach(button => {
+        button.addEventListener('click', closeActivityScores);
+    });
+
+    document.getElementById('sq-scores-refresh')
+        ?.addEventListener('click', loadActivityScores);
+
+    document.getElementById('sq-scores-overview-tab')
+        ?.addEventListener('click', () => switchScoreTab('overview'));
+
+    document.getElementById('sq-scores-history-tab')
+        ?.addEventListener('click', () => switchScoreTab('history'));
+
+    modal.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeActivityScores();
+        }
+    });
+}
+
+
+let deletingActivityId = null;
+
+async function deleteDraftActivity(activity, classId, button) {
+    if (deletingActivityId !== null || activity.status !== 'draft') {
+        return;
+    }
+
+    const confirmed = await showConfirmation(
+        `Delete "${activity.title || 'Untitled Activity'}"?\n\n` +
+        'This will permanently delete the draft and its saved questions.\n\n' +
+        'This action cannot be undone.',
+        {
+            title: 'Delete draft activity?',
+            confirmLabel: 'Delete activity',
+            cancelLabel: 'Cancel',
+        }
+    );
+
+    if (!confirmed) return;
+
+    const user = auth.currentUser;
+
+    if (!user) {
+        showAlert('Please sign in again.');
+        return;
+    }
+
+    deletingActivityId = activity.id;
+    button.disabled = true;
+    button.textContent = 'Deleting...';
+
+    try {
+        const csrfToken = document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+        if (!csrfToken) {
+            throw new Error('CSRF token is missing.');
+        }
+
+        const idToken = await user.getIdToken();
+
+        const response = await fetch(
+            `/class/activities/${encodeURIComponent(activity.id)}`,
+            {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ classId }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message || 'Could not delete draft activity.'
+            );
+        }
+
+        showAlert('Draft activity deleted successfully.');
+        // The existing Firestore onSnapshot listener
+        // automatically refreshes the activity cards.
+    } catch (error) {
+        showAlert(
+            error.message || 'Failed to delete draft activity.'
+        );
+    } finally {
+        deletingActivityId = null;
+
+        if (button.isConnected) {
+            button.disabled = false;
+            button.textContent = 'Delete';
+        }
+    }
+}
+
+
+let recoveringSourceActivityId = null;
+
+async function uploadMissingActivitySource(activity, classId, button) {
+    if (
+        recoveringSourceActivityId !== null ||
+        activity.status !== 'draft' ||
+        activity.generationMethod !== 'file' ||
+        activity.sourceFile?.publicId
+    ) {
+        return;
+    }
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.pdf,.docx,.txt';
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+
+        if (!file) return;
+
+        const extension = file.name.split('.').pop()?.toLowerCase();
+
+        if (
+            !['pdf', 'docx', 'txt'].includes(extension) ||
+            file.size === 0 ||
+            file.size > 10 * 1024 * 1024
+        ) {
+            showAlert(
+                'Select a valid PDF, DOCX, or TXT document up to 10 MB.'
+            );
+            return;
+        }
+
+        const user = auth.currentUser;
+
+        if (!user) {
+            showAlert('Please sign in again.');
+            return;
+        }
+
+        recoveringSourceActivityId = activity.id;
+        button.disabled = true;
+        button.textContent = 'Uploading Document...';
+
+        try {
+            const csrfToken = document.querySelector(
+                'meta[name="csrf-token"]'
+            )?.content;
+
+            if (!csrfToken) {
+                throw new Error('CSRF token is missing.');
+            }
+
+            const idToken = await user.getIdToken();
+
+            const formData = new FormData();
+            formData.append('classId', classId);
+            formData.append('activityId', activity.id);
+            formData.append('file', file);
+
+            const response = await fetch(
+                '/class/activities/upload-source',
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                    body: formData,
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.message || 'Document upload failed.'
+                );
+            }
+
+            showAlert(
+                'Source document uploaded successfully. ' +
+                'You can now generate questions.'
+            );
+        } catch (error) {
+            showAlert(
+                error.message || 'Could not upload source document.'
+            );
+        } finally {
+            recoveringSourceActivityId = null;
+
+            if (button.isConnected) {
+                button.disabled = false;
+                button.textContent = 'Upload Source Document';
+            }
+        }
+    }, { once: true });
+
+    fileInput.click();
+}
+
+
 function renderGameActivities(container, activities, classId) {
     container.replaceChildren();
 
@@ -1048,18 +1541,36 @@ function renderGameActivities(container, activities, classId) {
         // Determine whether the activity is still a draft.
         const isDraft = activity.status === 'draft';
 
+        const isExpired =
+            activity.status === 'published' &&
+            activity.deadlineAt?.toDate &&
+            Date.now() >= activity.deadlineAt.toDate().getTime();
+
         const hasSavedQuestions =
             Number(activity.questionCount ?? 0) === 10;
+
+        const needsSourceFile =
+            isDraft &&
+            activity.generationMethod === 'file' &&
+            !activity.sourceFile?.publicId;
 
         status.classList.add(
             isDraft ? 'sq-activity-status-draft'
                 : 'sq-activity-status-published'
         );
+
         status.textContent = isDraft
             ? 'Draft'
-            : activity.status === 'published'
-                ? 'Published'
-                : activity.status || 'Unknown';
+            : isExpired
+                ? 'Closed'
+                : activity.status === 'published'
+                    ? 'Published'
+                    : activity.status || 'Unknown';
+
+        if (isExpired) {
+            status.classList.remove('sq-activity-status-published');
+            status.classList.add('sq-activity-status-closed');
+        }
 
         header.append(identity, status);
         card.appendChild(header);
@@ -1085,7 +1596,29 @@ function renderGameActivities(container, activities, classId) {
                 activity.createdAt.toDate().toLocaleDateString();
         }
 
+
         footer.append(attempts, date);
+
+        if (activity.deadlineAt?.toDate) {
+            const deadlineDate = activity.deadlineAt.toDate();
+            const deadline = document.createElement('span');
+
+            deadline.textContent = `Deadline: ${deadlineDate.toLocaleString(
+                'en-PH',
+                {
+                    timeZone: 'Asia/Manila',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                }
+            )} PHT`;
+
+            footer.appendChild(deadline);
+        }
+
         card.appendChild(footer);
 
         const actions = document.createElement('div');
@@ -1102,13 +1635,16 @@ function renderGameActivities(container, activities, classId) {
 
             questionAction.disabled =
                 generatingActivityId !== null ||
-                publishingActivityId !== null;
+                publishingActivityId !== null ||
+                needsSourceFile;
 
             questionAction.textContent = hasSavedQuestions
                 ? 'View Saved Questions'
                 : isGenerating
                     ? 'Generating Questions...'
-                    : 'Generate Questions';
+                    : needsSourceFile
+                        ? 'Source Document Required'
+                        : 'Generate Questions';
 
             const message = document.createElement('p');
             message.className = 'sq-activity-generation-message';
@@ -1132,6 +1668,37 @@ function renderGameActivities(container, activities, classId) {
 
             actions.appendChild(questionAction);
 
+
+            if (needsSourceFile) {
+                const uploadButton = document.createElement('button');
+
+                uploadButton.type = 'button';
+                uploadButton.className = 'sq-activity-action';
+                uploadButton.textContent = 'Upload Source Document';
+
+                uploadButton.addEventListener('click', () => {
+                    uploadMissingActivitySource(
+                        activity,
+                        classId,
+                        uploadButton
+                    );
+                });
+
+                actions.appendChild(uploadButton);
+            }
+
+            if (needsSourceFile) {
+                const notice = document.createElement('p');
+
+                notice.className = 'sq-activity-generation-message';
+                notice.textContent =
+                    'This draft needs a source document before questions can be generated.';
+
+                notice.setAttribute('role', 'status');
+
+                actions.appendChild(notice);
+            }
+
             if (hasSavedQuestions) {
                 const publishButton = document.createElement('button');
 
@@ -1149,6 +1716,25 @@ function renderGameActivities(container, activities, classId) {
                 actions.appendChild(publishButton);
             }
 
+
+            const deleteButton = document.createElement('button');
+
+            deleteButton.type = 'button';
+            deleteButton.className = 'sq-activity-delete';
+            deleteButton.textContent = 'Delete';
+
+            deleteButton.disabled =
+                deletingActivityId !== null ||
+                publishingActivityId !== null ||
+                generatingActivityId !== null;
+
+            deleteButton.addEventListener('click', () => {
+                deleteDraftActivity(activity, classId, deleteButton);
+            });
+
+            actions.appendChild(deleteButton);
+
+
             card.append(actions, message);
         } else if (activity.status === 'published') {
             const viewButton = document.createElement('button');
@@ -1161,7 +1747,17 @@ function renderGameActivities(container, activities, classId) {
                 viewSavedActivityQuestions(activity);
             });
 
-            actions.appendChild(viewButton);
+            const scoresButton = document.createElement('button');
+
+            scoresButton.type = 'button';
+            scoresButton.className = 'sq-activity-action';
+            scoresButton.textContent = 'View Scores';
+
+            scoresButton.addEventListener('click', () => {
+                openActivityScores(activity, classId, scoresButton);
+            });
+
+            actions.append(viewButton, scoresButton);
             card.appendChild(actions);
         }
 
@@ -1290,6 +1886,7 @@ function initializeActivityForm() {
 
     let submitting = false;
     let signedInUser = null;
+    let pendingFileDraftId = null;
 
     onAuthStateChanged(auth, (user) => {
         signedInUser = user;
@@ -1307,6 +1904,13 @@ function initializeActivityForm() {
     }
 
     function updateGenerationMethod() {
+        if (pendingFileDraftId) {
+            methodSelect.value = 'file';
+            methodSelect.disabled = true;
+        } else {
+            methodSelect.disabled = false;
+        }
+
         const isTopic = methodSelect.value === 'topic';
 
         topicSection.hidden = !isTopic;
@@ -1316,10 +1920,19 @@ function initializeActivityForm() {
         fileInput.required = !isTopic;
 
         clearMessage();
+
+        form.querySelectorAll(
+            'input:not([type="file"]), select:not(#activity-generation-method), textarea'
+        ).forEach((field) => {
+            field.disabled = Boolean(pendingFileDraftId);
+        });
     }
 
     function openModal() {
-        form.reset();
+        if (!pendingFileDraftId) {
+            form.reset();
+        }
+
         clearMessage();
         updateGenerationMethod();
 
@@ -1375,19 +1988,66 @@ function initializeActivityForm() {
         const generationMethod = methodSelect.value;
 
         // File processing will be implemented separately.
+
+        let selectedSourceFile = null;
+
         if (generationMethod === 'file') {
-            showMessage(
-                'File-based activity creation is not available yet. ' +
-                'Please select Enter Topic.',
-                'info'
-            );
-            return;
+            selectedSourceFile = fileInput.files?.[0] ?? null;
+
+            if (!selectedSourceFile) {
+                showMessage('Please select a source document.');
+                return;
+            }
+
+            const allowedExtensions = ['pdf', 'docx', 'txt'];
+
+            const extension = selectedSourceFile.name
+                .split('.')
+                .pop()
+                ?.toLowerCase();
+
+            if (!allowedExtensions.includes(extension)) {
+                showMessage(
+                    'Unsupported file type. Please select PDF, DOCX, or TXT.'
+                );
+                return;
+            }
+
+            const maxFileSize = 10 * 1024 * 1024;
+
+            if (
+                selectedSourceFile.size === 0 ||
+                selectedSourceFile.size > maxFileSize
+            ) {
+                showMessage(
+                    'The source document must be between 1 byte and 10 MB.'
+                );
+                return;
+            }
         }
+
 
         if (!signedInUser) {
             showMessage('Please sign in again.');
             return;
         }
+
+
+        const deadlineInput = document.getElementById('activity-deadline');
+        const deadlineAt = deadlineInput?.value || null;
+
+        if (deadlineAt) {
+            const selectedDeadline = new Date(deadlineAt);
+
+            if (
+                Number.isNaN(selectedDeadline.getTime()) ||
+                selectedDeadline.getTime() <= Date.now()
+            ) {
+                showMessage('Please select a future activity deadline.');
+                return;
+            }
+        }
+
 
         const payload = {
             classId,
@@ -1400,13 +2060,17 @@ function initializeActivityForm() {
             gameType: document.getElementById(
                 'activity-game-type'
             ).value,
+
             generationMethod,
-            topic: topicInput.value.trim(),
+            topic: generationMethod === 'topic'
+                ? topicInput.value.trim()
+                : '',
             maxAttempts: Number(
                 document.getElementById(
                     'activity-max-attempts'
                 ).value
             ),
+            deadlineAt,
         };
 
         submitting = true;
@@ -1424,35 +2088,96 @@ function initializeActivityForm() {
                 throw new Error('CSRF token is missing.');
             }
 
-            const response = await fetch(
-                '/class/activities',
-                {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Authorization': `Bearer ${idToken}`,
-                    },
-                    body: JSON.stringify(payload),
-                }
-            );
 
-            const data = await response.json();
+            let activityId = pendingFileDraftId;
 
-            if (!response.ok) {
-                throw new Error(
-                    data.message || 'Could not save activity.'
+            if (!activityId) {
+                const response = await fetch(
+                    '/class/activities',
+                    {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Authorization': `Bearer ${idToken}`,
+                        },
+                        body: JSON.stringify(payload),
+                    }
                 );
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(
+                        data.message || 'Could not save activity.'
+                    );
+                }
+
+                activityId = data.activityId;
+
+                if (!activityId) {
+                    throw new Error(
+                        'The draft was created, but the server did not return an activity ID. ' +
+                        'Check the activity list before retrying.'
+                    );
+                }
+
+                if (generationMethod === 'file') {
+                    pendingFileDraftId = activityId;
+                    updateGenerationMethod();
+                }
             }
 
-            showMessage(
-                'Activity draft saved successfully.',
-                'success'
+
+            if (generationMethod === 'file') {
+                saveButton.textContent = 'Uploading Document...';
+
+                const uploadForm = new FormData();
+
+                uploadForm.append('classId', classId);
+                uploadForm.append('activityId', activityId);
+                uploadForm.append('file', selectedSourceFile);
+
+                const uploadResponse = await fetch(
+                    '/class/activities/upload-source',
+                    {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Authorization': `Bearer ${idToken}`,
+                        },
+                        body: uploadForm,
+                    }
+                );
+
+                const uploadData = await uploadResponse.json();
+
+
+                if (!uploadResponse.ok || !uploadData.success) {
+                    throw new Error(
+                        'Document upload failed: ' +
+                        (uploadData.message || 'Unknown upload error.') +
+                        ' Please retry the upload.'
+                    );
+                }
+
+                pendingFileDraftId = null;
+
+            }
+
+            submitting = false;
+            closeModal();
+
+            showAlert(
+                generationMethod === 'file'
+                    ? 'Activity draft and source document saved successfully.'
+                    : 'Activity draft saved successfully.'
             );
 
-            closeModal();
         } catch (error) {
             showMessage(
                 error.message || 'Failed to save activity.'
@@ -1460,8 +2185,11 @@ function initializeActivityForm() {
         } finally {
             submitting = false;
             saveButton.disabled = false;
-            saveButton.textContent = 'Save Draft';
+            saveButton.textContent = pendingFileDraftId
+                ? 'Retry Document Upload'
+                : 'Save Draft';
         }
+
     });
 
     updateGenerationMethod();
@@ -1472,6 +2200,7 @@ function initializeGameActivities() {
     initializeActivityList();
     initializeQuestionPreview();
     initializePublishModal();
+    initializeScoreMonitoring();
 }
 
 if (document.readyState === 'loading') {

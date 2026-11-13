@@ -8,6 +8,7 @@ use App\Http\Controllers\ClassStudentController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\GameActivityController;
 use App\Http\Controllers\StudentActivityAttemptController;
+use App\Http\Controllers\GameActivityScoreController;
 
 Route::get('/', function () {
     return view('home');
@@ -59,6 +60,14 @@ Route::post(
     ->middleware('throttle:10,1')
     ->name('class.activities.store');
 
+Route::delete(
+    '/class/activities/{activityId}',
+    [GameActivityController::class, 'destroy']
+)
+    ->whereUuid('activityId')
+    ->middleware('throttle:10,1')
+    ->name('class.activities.destroy');
+
 Route::post('/class/activities/generate', [
     GameActivityController::class,
     'generate',
@@ -81,3 +90,16 @@ Route::post('/class/activities/start', [
     'start',
 ])->middleware('throttle:20,1')
     ->name('api.class.activities.start');
+
+Route::post(
+    '/class/activities/scores',
+    [GameActivityScoreController::class, 'index']
+)->name('class.activities.scores');
+
+
+Route::post(
+    '/class/activities/upload-source',
+    [GameActivityController::class, 'uploadSource']
+)
+    ->middleware('throttle:10,1')
+    ->name('class.activities.upload-source');

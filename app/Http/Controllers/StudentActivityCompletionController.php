@@ -61,11 +61,14 @@ class StudentActivityCompletionController extends Controller
                 if (! $response->successful()) {
                     return response()->json(['message' => "Could not verify {$label}."], 503);
                 }
-                if (
-                    $label === 'Published activity' &&
-                    $response->json('fields.status.stringValue') !== 'published'
-                ) {
+                {
                     return response()->json(['message' => 'Activity is unavailable.'], 403);
+                }
+
+                if ($label === 'Published activity') {
+                    $deadlineAt = $response->json(
+                        'fields.deadlineAt.timestampValue'
+                    );
                 }
             }
 
@@ -92,6 +95,7 @@ class StudentActivityCompletionController extends Controller
                 throw new \RuntimeException('Could not read authoritative activity.');
             }
             $activity = $this->decodeDocument($activityResponse->json('fields', []));
+
             if (($activity['status'] ?? '') !== 'published') {
                 return response()->json(['message' => 'Activity is unavailable.'], 403);
             }

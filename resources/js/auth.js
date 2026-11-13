@@ -1,4 +1,5 @@
 import { auth, db } from './firebase';
+import { showAlert } from './alert-modal';
 
 import {
     browserLocalPersistence,
@@ -108,12 +109,12 @@ if (registerForm) {
                 ?.value;
 
         if (!name || !email || !password || !confirmPassword) {
-            alert('Please fill in all fields.');
+            showAlert('Please fill in all fields.');
             return;
         }
 
         if (password !== confirmPassword) {
-            alert('Passwords do not match.');
+            showAlert('Passwords do not match.');
             return;
         }
 
@@ -124,7 +125,7 @@ if (registerForm) {
             /[^A-Za-z0-9]/.test(password);
 
         if (!validPassword) {
-            alert(
+            showAlert(
                 'Password must have at least 8 characters, including a letter, number, and symbol.'
             );
             return;
@@ -178,7 +179,7 @@ if (registerForm) {
 
             showForm('login-form');
 
-            alert(
+            showAlert(
                 'Account created! We sent a verification link to your email. Please verify your email before logging in.'
             );
 
@@ -189,7 +190,7 @@ if (registerForm) {
                 error.code ===
                 'auth/email-already-in-use'
             ) {
-                alert(
+                showAlert(
                     'This email already has an account.'
                 );
 
@@ -197,7 +198,7 @@ if (registerForm) {
                 error.code ===
                 'auth/invalid-email'
             ) {
-                alert(
+                showAlert(
                     'Please enter a valid email address.'
                 );
 
@@ -205,12 +206,12 @@ if (registerForm) {
                 error.code ===
                 'auth/weak-password'
             ) {
-                alert(
+                showAlert(
                     'Your password is too weak.'
                 );
 
             } else {
-                alert(
+                showAlert(
                     'Could not create the account. Please try again.'
                 );
             }
@@ -254,7 +255,7 @@ if (loginForm) {
         const email = emailInput?.value.trim();
 
         if (!email) {
-            alert('Enter your email address and then select Forgot Password.');
+            showAlert('Enter your email address and then select Forgot Password.');
             emailInput?.focus();
             return;
         }
@@ -264,16 +265,16 @@ if (loginForm) {
 
         try {
             await sendPasswordResetEmail(auth, email);
-            alert('If an account exists for that email, a password reset link will be sent.');
+            showAlert('If an account exists for that email, a password reset link will be sent.');
         } catch (error) {
             console.error(error);
 
             if (error.code === 'auth/invalid-email') {
-                alert('Please enter a valid email address.');
+                showAlert('Please enter a valid email address.');
             } else if (error.code === 'auth/too-many-requests') {
-                alert('Too many requests. Please wait a moment before trying again.');
+                showAlert('Too many requests. Please wait a moment before trying again.');
             } else {
-                alert('Could not send a password reset email. Please try again.');
+                showAlert('Could not send a password reset email. Please try again.');
             }
         } finally {
             forgotPasswordLink.removeAttribute('aria-disabled');
@@ -302,7 +303,7 @@ if (loginForm) {
                 );
 
             if (!email || !password) {
-                alert(
+                showAlert(
                     'Please enter your email and password.'
                 );
                 return;
@@ -343,7 +344,7 @@ if (loginForm) {
                 if (!user.emailVerified) {
                     await signOut(auth);
 
-                    alert(
+                    showAlert(
                         'Please verify your email first. Check your inbox or spam folder for the verification link.'
                     );
 
@@ -364,7 +365,7 @@ if (loginForm) {
             } catch (error) {
                 console.error(error);
 
-                alert(
+                showAlert(
                     'Incorrect email or password.'
                 );
 
