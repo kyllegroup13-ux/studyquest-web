@@ -450,6 +450,29 @@
                 </div>
 
                 <div class="sq-field">
+                    <label for="activity-item-count" id="activity-item-count-label">
+                        Number of Items *
+                    </label>
+
+                    <select
+                        id="activity-item-count"
+                        name="itemCount"
+                        aria-describedby="activity-item-count-help"
+                        required>
+                        <option value="5">5 Items</option>
+                        <option value="10" selected>10 Items</option>
+                        <option value="15">15 Items</option>
+                        <option value="20">20 Items</option>
+                        <option value="25">25 Items</option>
+                        <option value="30">30 Items</option>
+                    </select>
+
+                    <small id="activity-item-count-help">
+                        Select how many questions the activity will contain.
+                    </small>
+                </div>
+
+                <div class="sq-field">
                     <label for="activity-generation-method">
                         Generation Method *
                     </label>
@@ -672,7 +695,7 @@
 
                 <div>
                     <span>Questions</span>
-                    <strong>10</strong>
+                    <strong id="sq-publish-questions">—</strong>
                 </div>
 
                 <div>

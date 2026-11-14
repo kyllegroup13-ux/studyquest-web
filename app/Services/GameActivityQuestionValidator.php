@@ -8,29 +8,53 @@ use RuntimeException;
 
 class GameActivityQuestionValidator
 {
-    public function validate(string $gameType, array $data): array
-    {
+    public function validate(
+        string $gameType,
+        array $data,
+        int $expectedCount = 10
+    ): array {
+        $allowedCounts = [5, 10, 15, 20, 25, 30];
+
+        if (! in_array($expectedCount, $allowedCounts, true)) {
+            throw new RuntimeException(
+                'Unsupported activity item count.'
+            );
+        }
+
         $rules = [
-            'items' => ['required', 'array', 'size:10'],
+            'items' => [
+                'required',
+                'array',
+                "size:{$expectedCount}",
+            ],
         ];
 
         switch ($gameType) {
             case 'mind_rush':
                 $rules += [
                     'items.*' => [
-                        'required', 'array:question,choices,correctIndex',
+                        'required',
+                        'array:question,choices,correctIndex',
                     ],
                     'items.*.question' => [
-                        'required', 'string', 'max:500',
+                        'required',
+                        'string',
+                        'max:500',
                     ],
                     'items.*.choices' => [
-                        'required', 'array', 'size:4',
+                        'required',
+                        'array',
+                        'size:4',
                     ],
                     'items.*.choices.*' => [
-                        'required', 'string', 'max:200',
+                        'required',
+                        'string',
+                        'max:200',
                     ],
                     'items.*.correctIndex' => [
-                        'required', 'integer', 'between:0,3',
+                        'required',
+                        'integer',
+                        'between:0,3',
                     ],
                 ];
                 break;
@@ -38,13 +62,18 @@ class GameActivityQuestionValidator
             case 'link_up':
                 $rules += [
                     'items.*' => [
-                        'required', 'array:term,definition',
+                        'required',
+                        'array:term,definition',
                     ],
                     'items.*.term' => [
-                        'required', 'string', 'max:100',
+                        'required',
+                        'string',
+                        'max:100',
                     ],
                     'items.*.definition' => [
-                        'required', 'string', 'max:500',
+                        'required',
+                        'string',
+                        'max:500',
                     ],
                 ];
                 break;
@@ -52,22 +81,35 @@ class GameActivityQuestionValidator
             case 'word_forge':
                 $rules += [
                     'items.*' => [
-                        'required', 'array:statement,answers,choices',
+                        'required',
+                        'array:statement,answers,choices',
                     ],
                     'items.*.statement' => [
-                        'required', 'string', 'max:500',
+                        'required',
+                        'string',
+                        'max:500',
                     ],
                     'items.*.answers' => [
-                        'required', 'array', 'min:1', 'max:10',
+                        'required',
+                        'array',
+                        'min:1',
+                        'max:10',
                     ],
                     'items.*.answers.*' => [
-                        'required', 'string', 'max:100',
+                        'required',
+                        'string',
+                        'max:100',
                     ],
                     'items.*.choices' => [
-                        'required', 'array', 'min:1', 'max:20',
+                        'required',
+                        'array',
+                        'min:1',
+                        'max:20',
                     ],
                     'items.*.choices.*' => [
-                        'required', 'string', 'max:100',
+                        'required',
+                        'string',
+                        'max:100',
                     ],
                 ];
                 break;
@@ -75,13 +117,18 @@ class GameActivityQuestionValidator
             case 'letter_quest':
                 $rules += [
                     'items.*' => [
-                        'required', 'array:question,answer',
+                        'required',
+                        'array:question,answer',
                     ],
                     'items.*.question' => [
-                        'required', 'string', 'max:500',
+                        'required',
+                        'string',
+                        'max:500',
                     ],
                     'items.*.answer' => [
-                        'required', 'string', 'max:100',
+                        'required',
+                        'string',
+                        'max:100',
                     ],
                 ];
                 break;
@@ -118,8 +165,8 @@ class GameActivityQuestionValidator
         };
 
         $values = array_map(
-            fn (array $item) =>
-                mb_strtolower(trim($item[$field])),
+            fn(array $item) =>
+            mb_strtolower(trim($item[$field])),
             $items
         );
 
@@ -136,17 +183,17 @@ class GameActivityQuestionValidator
             if (! str_contains($item['statement'], '[BLANK]')) {
                 throw ValidationException::withMessages([
                     "items.{$index}.statement" =>
-                        'Word Forge statement must contain [BLANK].',
+                    'Word Forge statement must contain [BLANK].',
                 ]);
             }
 
             $answers = array_map(
-                fn ($value) => mb_strtolower(trim($value)),
+                fn($value) => mb_strtolower(trim($value)),
                 $item['answers']
             );
 
             $choices = array_map(
-                fn ($value) => mb_strtolower(trim($value)),
+                fn($value) => mb_strtolower(trim($value)),
                 $item['choices']
             );
 
@@ -154,7 +201,7 @@ class GameActivityQuestionValidator
                 if (! in_array($answer, $choices, true)) {
                     throw ValidationException::withMessages([
                         "items.{$index}.choices" =>
-                            'Word Forge choices must include all answers.',
+                        'Word Forge choices must include all answers.',
                     ]);
                 }
             }
@@ -162,7 +209,7 @@ class GameActivityQuestionValidator
             if (count($choices) !== count(array_unique($choices))) {
                 throw ValidationException::withMessages([
                     "items.{$index}.choices" =>
-                        'Word Forge choices must be unique.',
+                    'Word Forge choices must be unique.',
                 ]);
             }
         }
@@ -172,14 +219,14 @@ class GameActivityQuestionValidator
     {
         foreach ($items as $index => $item) {
             $choices = array_map(
-                fn ($value) => mb_strtolower(trim($value)),
+                fn($value) => mb_strtolower(trim($value)),
                 $item['choices']
             );
 
             if (count($choices) !== count(array_unique($choices))) {
                 throw ValidationException::withMessages([
                     "items.{$index}.choices" =>
-                        'Mind Rush choices must be unique.',
+                    'Mind Rush choices must be unique.',
                 ]);
             }
         }

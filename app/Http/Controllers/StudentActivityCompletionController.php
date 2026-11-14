@@ -18,7 +18,7 @@ class StudentActivityCompletionController extends Controller
             'classId' => ['required', 'string', 'regex:/^[A-Za-z0-9_-]{1,128}$/'],
             'activityId' => ['required', 'uuid'],
             'attemptId' => ['required', 'uuid'],
-            'answers' => ['required', 'array', 'size:10'],
+            'answers' => ['required', 'array', 'list', 'min:5', 'max:30'],
         ]);
 
         $idToken = $request->bearerToken();
@@ -111,8 +111,30 @@ class StudentActivityCompletionController extends Controller
             }
             $gameType = $activity['gameType'] ?? '';
             $items = $activity['questions']['items'] ?? null;
-            if (! is_array($items) || count($items) !== 10 || ! array_is_list($items)) {
+
+            // Legacy activities without itemCount contain 10 questions.
+            $itemCount = (int) ($activity['itemCount'] ?? 10);
+
+            if (
+                ! in_array($itemCount, [5, 10, 15, 20, 25, 30], true) ||
+                ! is_array($items) ||
+                ! array_is_list($items) ||
+                count($items) !== $itemCount
+            ) {
                 throw new \RuntimeException('Activity question bank is invalid.');
+            }
+
+            // Link Up always uses five matching pairs per round.
+            if ($gameType === 'link_up') {
+                $roundCount = (int) ($activity['roundCount'] ?? 2);
+
+                if (
+                    $roundCount < 1 ||
+                    $roundCount > 6 ||
+                    $roundCount * 5 !== $itemCount
+                ) {
+                    throw new \RuntimeException('Invalid Link Up round configuration.');
+                }
             }
             $maxScore = (int) ($activity['maxScore'] ?? 100);
             $maxAttempts = (int) ($activity['maxAttempts'] ?? 0);
@@ -121,11 +143,18 @@ class StudentActivityCompletionController extends Controller
             }
 
             $answers = array_values($input['answers']);
+
+            if (count($answers) !== $itemCount) {
+                return response()->json([
+                    'message' => "This activity requires exactly {$itemCount} answers.",
+                ], 422);
+            }
+
             $correct = $this->grade($gameType, $items, $answers);
             if ($correct === null) {
                 return response()->json(['message' => 'Invalid answer format.'], 422);
             }
-            $score = (int) round($correct * $maxScore / 10);
+            $score = (int) round($correct * $maxScore / $itemCount);
 
             for ($retry = 0; $retry < 5; $retry++) {
                 $summaryResponse = Http::withToken($accessToken)->timeout(15)->get($url . $summaryPath);
@@ -150,7 +179,7 @@ class StudentActivityCompletionController extends Controller
                         'score' => (int) ($attempt['score'] ?? 0),
                         'maxScore' => $maxScore,
                         'correctAnswers' => (int) ($attempt['correctAnswers'] ?? 0),
-                        'totalQuestions' => 10,
+                        'totalQuestions' => $itemCount,
                         'highestScore' => (int) ($summary['highestScore'] ?? 0),
                         'attemptsUsed' => $used,
                         'remainingAttempts' => max(0, $maxAttempts - $used),
@@ -197,7 +226,7 @@ class StudentActivityCompletionController extends Controller
                         'score' => $score,
                         'maxScore' => $maxScore,
                         'correctAnswers' => $correct,
-                        'totalQuestions' => 10,
+                        'totalQuestions' => $itemCount,
                         'highestScore' => $highestScore,
                         'attemptsUsed' => $used,
                         'remainingAttempts' => max(0, $maxAttempts - $used),

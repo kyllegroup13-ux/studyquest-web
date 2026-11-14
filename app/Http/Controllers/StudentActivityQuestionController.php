@@ -113,11 +113,40 @@ class StudentActivityQuestionController extends Controller
             $type = $activity['gameType'] ?? '';
             $items = $activity['questions']['items'] ?? null;
             $maxAttempts = $activity['maxAttempts'] ?? null;
-            if (($activity['status'] ?? '') !== 'published' ||
-                ! is_int($maxAttempts) || $used > $maxAttempts ||
-                ! is_array($items) || ! array_is_list($items) || count($items) !== 10
+
+            // Older published activities default to 10 questions.
+            $itemCount = (int) ($activity['itemCount'] ?? 10);
+
+            if (
+                ($activity['status'] ?? '') !== 'published' ||
+                ! is_int($maxAttempts) ||
+                $maxAttempts < 1 ||
+                $maxAttempts > 10 ||
+                $used > $maxAttempts ||
+                ! in_array($itemCount, [5, 10, 15, 20, 25, 30], true) ||
+                ! is_array($items) ||
+                ! array_is_list($items) ||
+                count($items) !== $itemCount
             ) {
-                return response()->json(['message' => 'Activity is unavailable or invalid.'], 409);
+                return response()->json([
+                    'message' => 'Activity is unavailable or invalid.',
+                ], 409);
+            }
+
+            $roundCount = 0;
+
+            if ($type === 'link_up') {
+                $roundCount = (int) ($activity['roundCount'] ?? 2);
+
+                if (
+                    $roundCount < 1 ||
+                    $roundCount > 6 ||
+                    $roundCount * 5 !== $itemCount
+                ) {
+                    return response()->json([
+                        'message' => 'Invalid Link Up round configuration.',
+                    ], 409);
+                }
             }
 
             $safe = [];
@@ -183,18 +212,32 @@ class StudentActivityQuestionController extends Controller
                 'activityId' => $activityId,
                 'attemptId' => $attemptId,
                 'gameType' => $type,
-                'questionCount' => 10,
+                'questionCount' => $itemCount,
+                'itemCount' => $itemCount,
+                'roundCount' => $roundCount,
                 'questions' => $safe,
             ];
             if ($type === 'link_up') {
                 $definitions = array_column($items, 'definition');
-                // Stable permutation for this attempt. Never expose source indices.
-                $indices = range(0, 9);
-                usort($indices, fn(int $a, int $b) => strcmp(
-                    hash('sha256', $attemptId . ':definition:' . $a),
-                    hash('sha256', $attemptId . ':definition:' . $b)
-                ));
-                $payload['definitions'] = array_map(fn(int $i) => $definitions[$i], $indices);
+                $shuffledDefinitions = [];
+
+                // Shuffle definitions within each five-pair round.
+                // Keep the result stable for repeated requests using the same attempt.
+                for ($round = 0; $round < $roundCount; $round++) {
+                    $start = $round * 5;
+                    $indices = range($start, $start + 4);
+
+                    usort($indices, fn(int $a, int $b) => strcmp(
+                        hash('sha256', $attemptId . ':definition:' . $a),
+                        hash('sha256', $attemptId . ':definition:' . $b)
+                    ));
+
+                    foreach ($indices as $index) {
+                        $shuffledDefinitions[] = $definitions[$index];
+                    }
+                }
+
+                $payload['definitions'] = $shuffledDefinitions;
             }
             return response()->json($payload);
         } catch (Throwable $e) {

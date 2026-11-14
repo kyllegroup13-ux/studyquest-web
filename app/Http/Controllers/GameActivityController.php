@@ -36,6 +36,16 @@ class GameActivityController extends Controller
                 'required',
                 'in:mind_rush,link_up,word_forge,letter_quest',
             ],
+            'itemCount' => [
+                'required',
+                'integer',
+                'in:5,10,15,20,25,30',
+            ],
+            'roundCount' => [
+                'nullable',
+                'integer',
+                'between:1,6',
+            ],
             'generationMethod' => [
                 'required',
                 'in:topic,file',
@@ -57,6 +67,33 @@ class GameActivityController extends Controller
                 'date_format:Y-m-d\TH:i',
             ],
         ]);
+
+        $gameType = $validated['gameType'];
+        $itemCount = (int) $validated['itemCount'];
+        $roundCount = $validated['roundCount'] ?? null;
+
+        if ($gameType === 'link_up') {
+            if (
+                $roundCount === null ||
+                $itemCount !== ((int) $roundCount * 5)
+            ) {
+                throw ValidationException::withMessages([
+                    'roundCount' => [
+                        'Link Up requires 1–6 rounds with 5 items per round.',
+                    ],
+                ]);
+            }
+
+            $roundCount = (int) $roundCount;
+        } else {
+            if ($roundCount !== null) {
+                throw ValidationException::withMessages([
+                    'roundCount' => [
+                        'Rounds are only supported for Link Up.',
+                    ],
+                ]);
+            }
+        }
 
         // 1. Verify Firebase authentication.
         $idToken = $request->bearerToken();
@@ -211,6 +248,12 @@ class GameActivityController extends Controller
             ],
             'gameType' => [
                 'stringValue' => $validated['gameType'],
+            ],
+            'itemCount' => [
+                'integerValue' => (string) $itemCount,
+            ],
+            'roundCount' => [
+                'integerValue' => (string) ($roundCount ?? 0),
             ],
             'generationMethod' => [
                 'stringValue' => $validated['generationMethod'],
@@ -423,6 +466,16 @@ class GameActivityController extends Controller
 
             $gameType = $activity['gameType']['stringValue'] ?? '';
 
+            $itemCount = (int) (
+                $activity['itemCount']['integerValue'] ?? 10
+            );
+
+            if (! in_array($itemCount, [5, 10, 15, 20, 25, 30], true)) {
+                return response()->json([
+                    'message' => 'Invalid activity item count.',
+                ], 422);
+            }
+
             $topic = '';
             $sourceFile = null;
 
@@ -488,12 +541,14 @@ class GameActivityController extends Controller
                     $gameType,
                     $fileContents,
                     $sourceFile['mimeType'],
-                    $sourceFile['fileName']
+                    $sourceFile['fileName'],
+                    $itemCount
                 );
             } else {
                 $questions = $aiService->generate(
                     $gameType,
-                    $topic
+                    $topic,
+                    $itemCount
                 );
             }
 
@@ -677,6 +732,16 @@ class GameActivityController extends Controller
 
             $gameType = $activity['gameType']['stringValue'] ?? '';
 
+            $itemCount = (int) (
+                $activity['itemCount']['integerValue'] ?? 10
+            );
+
+            if (! in_array($itemCount, [5, 10, 15, 20, 25, 30], true)) {
+                return response()->json([
+                    'message' => 'Invalid activity item count.',
+                ], 422);
+            }
+
             // Used to prevent concurrent changes from being overwritten.
             $updateTime = $activityResponse->json('updateTime');
 
@@ -701,7 +766,8 @@ class GameActivityController extends Controller
         try {
             $questions = $validator->validate(
                 $gameType,
-                $validated['questions']
+                $validated['questions'],
+                $itemCount
             );
         } catch (ValidationException $e) {
             return response()->json([
@@ -769,7 +835,7 @@ class GameActivityController extends Controller
         $fields = [
             'questions' => $this->toFirestoreValue($questions),
             'questionCount' => [
-                'integerValue' => '10',
+                'integerValue' => (string) count($questions['items']),
             ],
             'questionsGeneratedAt' => [
                 'timestampValue' => now('UTC')->toIso8601String(),
@@ -841,7 +907,7 @@ class GameActivityController extends Controller
         return response()->json([
             'success' => true,
             'activityId' => $activityId,
-            'questionCount' => 10,
+            'questionCount' => count($questions['items']),
             'status' => 'draft',
             'message' => 'Questions saved successfully.',
         ]);
@@ -981,6 +1047,32 @@ class GameActivityController extends Controller
 
 
             // 3. Require a complete saved question bank.
+            $expectedCount = (int) (
+                $activity['itemCount']['integerValue'] ?? 10
+            );
+
+            if (! in_array($expectedCount, [5, 10, 15, 20, 25, 30], true)) {
+                return response()->json([
+                    'message' => 'Invalid activity item count.',
+                ], 422);
+            }
+
+            $gameType = $activity['gameType']['stringValue'] ?? '';
+            $roundCount = (int) (
+                $activity['roundCount']['integerValue'] ?? 0
+            );
+
+            if (
+                $gameType === 'link_up' &&
+                ($roundCount < 1 ||
+                    $roundCount > 6 ||
+                    $expectedCount !== $roundCount * 5)
+            ) {
+                return response()->json([
+                    'message' => 'Invalid Link Up round configuration.',
+                ], 422);
+            }
+
             $questionCount = (int) (
                 $activity['questionCount']['integerValue'] ?? 0
             );
@@ -988,12 +1080,12 @@ class GameActivityController extends Controller
             $savedItems = $activity['questions']['mapValue']['fields']['items']['arrayValue']['values'] ?? null;
 
             if (
-                $questionCount !== 10 ||
+                $questionCount !== $expectedCount ||
                 ! is_array($savedItems) ||
-                count($savedItems) !== 10
+                count($savedItems) !== $expectedCount
             ) {
                 return response()->json([
-                    'message' => 'Save all 10 questions before publishing.',
+                    'message' => "Save all {$expectedCount} questions before publishing.",
                 ], 422);
             }
 
@@ -1106,6 +1198,12 @@ class GameActivityController extends Controller
             ],
             'questionCount' => [
                 'integerValue' => (string) $questionCount,
+            ],
+            'itemCount' => [
+                'integerValue' => (string) $expectedCount,
+            ],
+            'roundCount' => [
+                'integerValue' => (string) $roundCount,
             ],
             'maxAttempts' => [
                 'integerValue' => (string) (

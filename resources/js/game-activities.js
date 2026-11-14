@@ -89,6 +89,12 @@ if (document.readyState === 'loading') {
     initializeGameActivityTabs();
 }
 
+function getExpectedActivityItemCount(activity) {
+    const count = Number(activity?.itemCount ?? 10);
+    const allowedCounts = [5, 10, 15, 20, 25, 30];
+
+    return allowedCounts.includes(count) ? count : null;
+}
 
 const previewGameLabels = {
     mind_rush: 'Mind Rush',
@@ -496,7 +502,7 @@ async function saveActivityQuestions() {
         saveButton.disabled = true;
 
         showAlert(
-            'Successfully saved 10 questions to Firestore. ' +
+            `Successfully saved ${preview.questions.items.length} questions to Firestore. ` +
             'The activity remains a draft.'
         );
 
@@ -614,10 +620,12 @@ function initializeQuestionPreview() {
 
 async function generateActivityQuestions(
     classId,
-    activityId,
+    activity,
     button,
     messageElement
 ) {
+    const activityId = activity.id;
+    const expectedCount = getExpectedActivityItemCount(activity);
     if (generatingActivityId !== null) return;
 
     const user = auth.currentUser;
@@ -674,9 +682,10 @@ async function generateActivityQuestions(
         }
 
         if (
+            expectedCount === null ||
             !data.questions ||
             !Array.isArray(data.questions.items) ||
-            data.questions.items.length !== 10
+            data.questions.items.length !== expectedCount
         ) {
             throw new Error(
                 'The server returned an invalid question set.'
@@ -694,8 +703,8 @@ async function generateActivityQuestions(
         openQuestionPreview();
 
         messageElement.textContent =
-            'Successfully generated 10 questions. ' +
-            'Question preview will be added next.';
+            `Successfully generated ${data.questions.items.length} questions. ` +
+            'Review the questions before saving.';
         messageElement.dataset.state = 'success';
         messageElement.hidden = false;
 
@@ -722,11 +731,22 @@ async function generateActivityQuestions(
 
 function viewSavedActivityQuestions(activity) {
     const questions = activity.questions;
+    const expectedCount = getExpectedActivityItemCount(activity);
+
+    if (
+        expectedCount === null ||
+        !questions ||
+        !Array.isArray(questions.items) ||
+        questions.items.length !== expectedCount
+    ) {
+        showAlert('Saved questions are missing or incomplete.');
+        return;
+    }
 
     if (
         !questions ||
         !Array.isArray(questions.items) ||
-        questions.items.length !== 10
+        questions.items.length !== expectedCount
     ) {
         showAlert(
             'Saved questions are missing or incomplete.'
@@ -757,13 +777,16 @@ function viewSavedActivityQuestions(activity) {
 
 
 function openPublishModal(activity, triggerButton) {
+    const expectedCount = getExpectedActivityItemCount(activity);
+
     if (
         publishingActivityId !== null ||
         publishSubmitting ||
         activity.status !== 'draft' ||
-        Number(activity.questionCount) !== 10 ||
+        expectedCount === null ||
+        Number(activity.questionCount) !== expectedCount ||
         !Array.isArray(activity.questions?.items) ||
-        activity.questions.items.length !== 10
+        activity.questions.items.length !== expectedCount
     ) {
         return;
     }
@@ -791,6 +814,19 @@ function openPublishModal(activity, triggerButton) {
         'sq-publish-game'
     ).textContent =
         previewGameLabels[activity.gameType] ?? 'Game';
+
+    const publishQuestions = document.getElementById(
+        'sq-publish-questions'
+    );
+
+    if (publishQuestions) {
+        const count = Number(activity.questionCount);
+
+        publishQuestions.textContent =
+            activity.gameType === 'link_up'
+                ? `${count} matching pairs (${Number(activity.roundCount ?? count / 5)} rounds)`
+                : String(count);
+    }
 
     document.getElementById(
         'sq-publish-attempts'
@@ -1546,8 +1582,13 @@ function renderGameActivities(container, activities, classId) {
             activity.deadlineAt?.toDate &&
             Date.now() >= activity.deadlineAt.toDate().getTime();
 
+        const expectedCount = getExpectedActivityItemCount(activity);
+
         const hasSavedQuestions =
-            Number(activity.questionCount ?? 0) === 10;
+            expectedCount !== null &&
+            Number(activity.questionCount ?? 0) === expectedCount &&
+            Array.isArray(activity.questions?.items) &&
+            activity.questions.items.length === expectedCount;
 
         const needsSourceFile =
             isDraft &&
@@ -1660,7 +1701,7 @@ function renderGameActivities(container, activities, classId) {
 
                 generateActivityQuestions(
                     classId,
-                    activity.id,
+                    activity,
                     questionAction,
                     message
                 );
@@ -1861,6 +1902,22 @@ function initializeActivityForm() {
         'cancel-activity-modal'
     );
 
+    const gameTypeSelect = document.getElementById(
+        'activity-game-type'
+    );
+
+    const itemCountSelect = document.getElementById(
+        'activity-item-count'
+    );
+
+    const itemCountLabel = document.getElementById(
+        'activity-item-count-label'
+    );
+
+    const itemCountHelp = document.getElementById(
+        'activity-item-count-help'
+    );
+
     const methodSelect = document.getElementById(
         'activity-generation-method'
     );
@@ -1903,6 +1960,37 @@ function initializeActivityForm() {
         message.hidden = true;
     }
 
+    function updateItemCountOptions() {
+        const isLinkUp = gameTypeSelect.value === 'link_up';
+
+        const options = isLinkUp
+            ? [1, 2, 3, 4, 5, 6]
+            : [5, 10, 15, 20, 25, 30];
+
+        itemCountLabel.textContent = isLinkUp
+            ? 'Number of Rounds *'
+            : 'Number of Items *';
+
+        itemCountHelp.textContent = isLinkUp
+            ? 'Each round contains 5 matching pairs.'
+            : 'Select how many questions the activity will contain.';
+
+        itemCountSelect.replaceChildren();
+
+        options.forEach((value) => {
+            const option = document.createElement('option');
+
+            option.value = String(value);
+            option.textContent = isLinkUp
+                ? `${value} ${value === 1 ? 'Round' : 'Rounds'}`
+                : `${value} Items`;
+
+            itemCountSelect.appendChild(option);
+        });
+
+        itemCountSelect.value = isLinkUp ? '2' : '10';
+    }
+
     function updateGenerationMethod() {
         if (pendingFileDraftId) {
             methodSelect.value = 'file';
@@ -1931,6 +2019,7 @@ function initializeActivityForm() {
     function openModal() {
         if (!pendingFileDraftId) {
             form.reset();
+            updateItemCountOptions();
         }
 
         clearMessage();
@@ -1961,6 +2050,11 @@ function initializeActivityForm() {
     methodSelect.addEventListener(
         'change',
         updateGenerationMethod
+    );
+
+    gameTypeSelect.addEventListener(
+        'change',
+        updateItemCountOptions
     );
 
     modal.addEventListener('click', (event) => {
@@ -2048,6 +2142,17 @@ function initializeActivityForm() {
             }
         }
 
+        const gameType = gameTypeSelect.value;
+        const selectedQuantity = Number(itemCountSelect.value);
+
+        const allowedQuantities = gameType === 'link_up'
+            ? [1, 2, 3, 4, 5, 6]
+            : [5, 10, 15, 20, 25, 30];
+
+        if (!allowedQuantities.includes(selectedQuantity)) {
+            showMessage('Please select a valid activity length.');
+            return;
+        }
 
         const payload = {
             classId,
@@ -2057,9 +2162,16 @@ function initializeActivityForm() {
             description: document.getElementById(
                 'activity-description'
             ).value.trim(),
-            gameType: document.getElementById(
-                'activity-game-type'
-            ).value,
+
+            gameType,
+
+            itemCount: gameType === 'link_up'
+                ? selectedQuantity * 5
+                : selectedQuantity,
+
+            roundCount: gameType === 'link_up'
+                ? selectedQuantity
+                : null,
 
             generationMethod,
             topic: generationMethod === 'topic'
