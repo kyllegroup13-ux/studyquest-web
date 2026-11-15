@@ -1527,10 +1527,10 @@ function renderGameActivities(container, activities, classId) {
     };
 
     const gameIcons = {
-        mind_rush: 'fa-bolt',
-        link_up: 'fa-link',
-        word_forge: 'fa-puzzle-piece',
-        letter_quest: 'fa-font',
+        mind_rush: '/images/games/mind_rush_icon.png',
+        link_up: '/images/games/link_up_icon.png',
+        word_forge: '/images/games/word_forge_icon.png',
+        letter_quest: '/images/games/letter_quest_icon.png',
     };
 
     for (const activity of activities) {
@@ -1546,10 +1546,16 @@ function renderGameActivities(container, activities, classId) {
         const icon = document.createElement('span');
         icon.className = 'sq-activity-icon';
 
-        const iconElement = document.createElement('i');
-        iconElement.className =
-            `fa-solid ${gameIcons[activity.gameType] ?? 'fa-gamepad'}`;
-        iconElement.setAttribute('aria-hidden', 'true');
+        const iconElement = document.createElement('img');
+
+        iconElement.src =
+            gameIcons[activity.gameType] ?? '/images/logo.png';
+
+        iconElement.alt = '';
+        iconElement.className = 'sq-activity-game-image';
+        iconElement.width = 44;
+        iconElement.height = 44;
+
         icon.appendChild(iconElement);
 
         const details = document.createElement('div');

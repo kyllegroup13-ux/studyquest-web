@@ -79,6 +79,34 @@ function firstInitial(name) {
     return (String(name || '').trim().charAt(0) || 'U').toUpperCase();
 }
 
+function resolveStudentAvatar(profileImageUrl) {
+    if (typeof profileImageUrl !== 'string') {
+        return null;
+    }
+
+    const value = profileImageUrl.trim();
+
+    if (!value) {
+        return null;
+    }
+
+    // Uploaded student photos from Cloudinary
+    if (/^https:\/\//i.test(value)) {
+        return value;
+    }
+
+    // Predefined Flutter avatars
+    const match = value.match(
+        /^assets\/images\/avatars\/(avatar_[1-8]\.png)$/
+    );
+
+    if (match) {
+        return `/images/avatars/${match[1]}`;
+    }
+
+    return null;
+}
+
 function formatDate(timestamp) {
     const date = timestamp?.toDate ? timestamp.toDate() : new Date();
     return date.toLocaleDateString('en-US', {
@@ -697,16 +725,24 @@ async function loadStudents() {
         initial.textContent = firstInitial(fullName);
         avatar.append(initial);
 
-        if (student.profileImageUrl) {
-            initial.hidden = true;
+        const avatarUrl = resolveStudentAvatar(student.profileImageUrl);
 
+        if (avatarUrl) {
             const image = document.createElement('img');
-            image.src = student.profileImageUrl;
+
+            image.src = avatarUrl;
             image.alt = '';
+            image.loading = 'lazy';
+
+            image.addEventListener('load', () => {
+                initial.hidden = true;
+            });
+
             image.addEventListener('error', () => {
                 image.remove();
                 initial.hidden = false;
             }, { once: true });
+
             avatar.append(image);
         }
 
