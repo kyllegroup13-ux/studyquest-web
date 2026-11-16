@@ -5,6 +5,7 @@ use App\Http\Controllers\StudentGameActivityController;
 use App\Http\Controllers\StudentActivityAttemptController;
 use App\Http\Controllers\StudentActivityCompletionController;
 use App\Http\Controllers\StudentActivityQuestionController;
+use App\Http\Controllers\StudentActivityRankingController;
 
 // Step 3.2A.2 — Activity authorization
 Route::post('/class/activities/authorize', [
@@ -38,3 +39,9 @@ Route::post('/class/activities/questions', [
     'questions',
 ])->middleware('throttle:20,1')
     ->name('api.class.activities.questions');
+
+Route::post('/class/activities/ranking', [
+    StudentActivityRankingController::class,
+    'index',
+])->middleware('throttle:30,1')
+    ->name('api.class.activities.ranking');
