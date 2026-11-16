@@ -2415,6 +2415,65 @@ textarea:focus-visible,
     text-align: left;
 }
 
+
+/* Activity Score Ranking */
+
+.sq-ranking-header {
+    margin-bottom: 20px;
+}
+
+.sq-ranking-header h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.sq-ranking-header p {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.sq-ranking-table th:first-child,
+.sq-ranking-table td:first-child {
+    width: 90px;
+    font-weight: 700;
+}
+
+.sq-ranking-table th:last-child,
+.sq-ranking-table td:last-child {
+    text-align: right;
+    font-weight: 700;
+}
+
+.sq-ranking-table .sq-ranking-top-1 {
+    background: #fef3c7;
+}
+
+.sq-ranking-table .sq-ranking-top-2 {
+    background: #f1f5f9;
+}
+
+.sq-ranking-table .sq-ranking-top-3 {
+    background: #ffedd5;
+}
+
+.sq-ranking-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+@media (max-width: 640px) {
+    .sq-ranking-header h3 {
+        font-size: 17px;
+    }
+
+    .sq-ranking-table th,
+    .sq-ranking-table td {
+        padding: 10px 8px;
+        font-size: 12px;
+    }
+}
+
+
 .sq-scores-table th {
     font-weight: 700;
 }

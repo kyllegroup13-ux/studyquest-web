@@ -786,6 +786,11 @@
                         aria-controls="sq-scores-history">
                         Attempt History
                     </button>
+                    <button type="button" id="sq-scores-ranking-tab"
+                        role="tab" aria-selected="false"
+                        aria-controls="sq-scores-ranking" tabindex="-1">
+                        Ranking
+                    </button>
                 </div>
 
                 <p id="sq-scores-message" role="status" aria-live="polite">
@@ -800,6 +805,22 @@
 
                 <div id="sq-scores-history" role="tabpanel"
                     aria-labelledby="sq-scores-history-tab" hidden>
+                </div>
+
+
+                <div id="sq-scores-ranking" role="tabpanel"
+                    aria-labelledby="sq-scores-ranking-tab" hidden>
+
+                    <div class="sq-ranking-header">
+                        <h3>Activity Leaderboard</h3>
+                        <p>
+                            Students are ranked according to their
+                            highest completed score.
+                        </p>
+                    </div>
+
+                    <div id="sq-ranking-content"></div>
+
                 </div>
             </div>
 

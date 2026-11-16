@@ -1048,21 +1048,110 @@ function scoreNode(tag, value, className = '') {
     return node;
 }
 
+
 function switchScoreTab(tab) {
-    const overview = tab === 'overview';
+    const tabs = ['overview', 'history', 'ranking'];
 
-    document.getElementById('sq-scores-overview').hidden = !overview;
-    document.getElementById('sq-scores-history').hidden = overview;
+    tabs.forEach(name => {
+        const selected = name === tab;
 
-    for (const [name, selected] of [
-        ['overview', overview],
-        ['history', !overview],
-    ]) {
-        const button = document.getElementById(`sq-scores-${name}-tab`);
-        button.setAttribute('aria-selected', String(selected));
-        button.tabIndex = selected ? 0 : -1;
-    }
+        const panel = document.getElementById(
+            `sq-scores-${name}`
+        );
+
+        const button = document.getElementById(
+            `sq-scores-${name}-tab`
+        );
+
+        if (panel) {
+            panel.hidden = !selected;
+        }
+
+        if (button) {
+            button.setAttribute(
+                'aria-selected',
+                String(selected)
+            );
+
+            button.tabIndex = selected ? 0 : -1;
+        }
+    });
 }
+
+
+function renderActivityRanking(data) {
+    const container = document.getElementById(
+        'sq-ranking-content'
+    );
+
+    if (!container) return;
+
+    container.replaceChildren();
+
+    const rankings = data.rankings || [];
+
+    if (rankings.length === 0) {
+        container.appendChild(
+            scoreNode(
+                'p',
+                'No completed student submissions yet.'
+            )
+        );
+
+        return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'sq-scores-table sq-ranking-table';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+
+    ['Rank', 'Student', 'Highest Score'].forEach(label => {
+        headRow.appendChild(scoreNode('th', label));
+    });
+
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+
+    rankings.forEach(student => {
+        const row = document.createElement('tr');
+
+        if (student.rank <= 3) {
+            row.classList.add(
+                `sq-ranking-top-${student.rank}`
+            );
+        }
+
+        row.appendChild(
+            scoreNode('td', `#${student.rank}`)
+        );
+
+        row.appendChild(
+            scoreNode('td', student.name)
+        );
+
+        row.appendChild(
+            scoreNode(
+                'td',
+                `${student.highestScore}/${data.maxScore}`
+            )
+        );
+
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'sq-scores-table-wrap';
+
+    wrapper.appendChild(table);
+    container.appendChild(wrapper);
+}
+
 
 function renderActivityScores(data) {
     const summary = document.getElementById('sq-scores-summary');
@@ -1072,6 +1161,7 @@ function renderActivityScores(data) {
     summary.replaceChildren();
     students.replaceChildren();
     history.replaceChildren();
+    renderActivityRanking(data);
 
     const metrics = document.createElement('div');
     metrics.className = 'sq-scores-metrics';
@@ -1270,6 +1360,7 @@ function openActivityScores(activity, classId, triggerButton) {
     document.getElementById('sq-scores-summary').replaceChildren();
     document.getElementById('sq-scores-students').replaceChildren();
     document.getElementById('sq-scores-history').replaceChildren();
+    document.getElementById('sq-ranking-content').replaceChildren();
 
     switchScoreTab('overview');
     modal.querySelector('.sq-question-preview-dialog')?.focus();
@@ -1309,6 +1400,9 @@ function initializeScoreMonitoring() {
 
     document.getElementById('sq-scores-history-tab')
         ?.addEventListener('click', () => switchScoreTab('history'));
+
+    document.getElementById('sq-scores-ranking-tab')
+        ?.addEventListener('click', () => switchScoreTab('ranking'));
 
     modal.addEventListener('keydown', event => {
         if (event.key === 'Escape') {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Google\Auth\Credentials\ServiceAccountCredentials;
+use App\Support\ActivityScoreRanking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -184,6 +185,7 @@ class GameActivityScoreController extends Controller
             }
 
             usort($students, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+            $rankings = ActivityScoreRanking::build($students);
             return response()->json([
                 'success' => true,
                 'activityId' => $activityId,
@@ -193,6 +195,7 @@ class GameActivityScoreController extends Controller
                 'completedStudents' => $completedCount,
                 'averageHighestScore' => $completedCount > 0 ? round($totalBest / $completedCount, 2) : null,
                 'students' => $students,
+                'rankings' => $rankings,
             ]);
         } catch (Throwable $e) {
             Log::error('Activity score monitoring failed', [
